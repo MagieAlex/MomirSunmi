@@ -9,6 +9,7 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -173,6 +174,11 @@ class MainActivity : AppCompatActivity() {
         val manaValue = binding.manaWheel.selectedValue ?: return
         binding.printButton.isBusy = true
 
+        // Answer the press immediately, before anything has been rolled. The
+        // roll takes a few milliseconds, but a button that does nothing until
+        // the database comes back feels broken.
+        binding.printButton.flash(ContextCompat.getColor(this, R.color.accent_soft))
+
         lifecycleScope.launch {
             val card = withContext(Dispatchers.IO) { repository.randomCard(manaValue) }
             if (card == null) {
@@ -181,10 +187,31 @@ class MainActivity : AppCompatActivity() {
                 return@launch
             }
 
+            playPrintGlow(card.colorIdentity)
+            // Name it now, not after printing. The glow already shows this card's
+            // colours, and leaving the previous card's name underneath for the
+            // second and a half the printer takes just looks like a stale screen.
+            showResult(card, null)
+
             val raster = printSlip(SlipContent.of(card))
             binding.printButton.isBusy = false
             if (raster != null) showResult(card, raster.height)
         }
+    }
+
+    /**
+     * Runs the colour-identity glow: the button takes the card's colours, then a
+     * band of them sweeps up the screen and out of the top edge, which is where
+     * the V2's paper actually emerges.
+     */
+    private fun playPrintGlow(colorIdentity: String) {
+        val colors = ManaColors.forIdentity(colorIdentity)
+        binding.printButton.flash(colors.first())
+
+        // Anchor the band on the button, in overlay coordinates.
+        val button = binding.printButton
+        val originY = button.y + button.height / 2f
+        binding.glowOverlay.play(colors, originY)
     }
 
     /**
@@ -247,6 +274,10 @@ class MainActivity : AppCompatActivity() {
                 return@launch
             }
 
+            // Preview runs the glow too, so the animation can be worked on
+            // without feeding paper through the printer for every tweak.
+            playPrintGlow(card.colorIdentity)
+
             val height = withContext(Dispatchers.IO) {
                 val content = SlipContent.of(card)
                 val mode = settings.printMode
@@ -271,13 +302,16 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun showResult(card: Card, contentDots: Int) {
+    /** [contentDots] is null until the slip has actually been rendered. */
+    private fun showResult(card: Card, contentDots: Int?) {
         lastCard = card
         binding.resultName.text = card.name
         binding.resultDetail.text = listOfNotNull(
             card.typeLine.takeIf { it.isNotBlank() },
             card.powerToughness,
-            String.format("%.0f mm", contentDots / EscPos.DOTS_PER_MM + settings.tearFeedMm),
+            contentDots?.let {
+                String.format("%.0f mm", it / EscPos.DOTS_PER_MM + settings.tearFeedMm)
+            },
         ).joinToString(" · ")
 
         val tokens = repository.tokensFor(card.oracleId)
@@ -313,6 +347,9 @@ class MainActivity : AppCompatActivity() {
         binding.printButton.isBusy = true
         lifecycleScope.launch {
             for (token in tokens) {
+                // Tokens carry plain colours rather than a colour identity, but
+                // they read the same way on screen.
+                playPrintGlow(token.colors)
                 if (printSlip(SlipContent.of(token)) == null) break
             }
             binding.printButton.isBusy = false

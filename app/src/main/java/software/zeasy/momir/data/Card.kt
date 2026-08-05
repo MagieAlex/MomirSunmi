@@ -16,6 +16,8 @@ data class Card(
     val oracleText: String,
     val power: String?,
     val toughness: String?,
+    /** WUBRG letters, empty for colourless. Drives the colour of the print animation. */
+    val colorIdentity: String,
     val scryfallUri: String,
     val artOffset: Long?,
     val artLength: Int?,

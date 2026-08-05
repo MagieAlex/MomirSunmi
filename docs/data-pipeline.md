@@ -18,6 +18,7 @@ Output lands in `tools/momirdeck/out/`:
 | File | Size | Contents |
 |---|---|---|
 | `momir.db` | 11 MB | 17,497 creatures, 532 tokens, 2,060 creature→token links |
+| | | (16,763 of the creatures carry a colour identity, 734 are colourless) |
 | `art.pack` | 238 MB | 18,029 pre-dithered 1-bit artworks |
 
 ## Streaming, not loading
@@ -134,6 +135,16 @@ Plus names starting `A-` (Alchemy rebalances) and type lines containing `Token`.
 > **If you change any of this**, change it in *both* `tools/momirdeck/momirdeck.py`
 > and `app/src/main/java/software/zeasy/momir/sync/ScryfallSync.kt`. A resync
 > that disagrees with the pushed corpus is a confusing bug to chase.
+
+## Schema changes after a release
+
+`CREATE TABLE IF NOT EXISTS` does nothing to a table that already exists, so a
+new column will not appear in a corpus somebody built last month. Both the
+builder and the app therefore apply added columns by hand — the builder from a
+`MIGRATIONS` list, the app from `addColumnIfMissing` in `CardRepository`.
+
+So far there is one: `cards.color_identity`, added for the print animation. An
+older corpus opens fine and simply animates colourless until it is rebuilt.
 
 ## Tokens
 

@@ -229,4 +229,19 @@
             android:textSize="13sp" />
     </LinearLayout>
 
+    <!--
+      Last child, so it draws over everything. Not clickable, so touches fall
+      straight through to the dial and the button underneath.
+    -->
+    <software.zeasy.momir.ui.GlowOverlay
+        android:id="@+id/glowOverlay"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:clickable="false"
+        android:focusable="false"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
 </androidx.constraintlayout.widget.ConstraintLayout>

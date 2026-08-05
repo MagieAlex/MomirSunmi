@@ -68,6 +68,10 @@ class PrintButton @JvmOverloads constructor(
     private var sweepAnimator: ValueAnimator? = null
     private var pressAnimator: ValueAnimator? = null
 
+    private var flashProgress = 0f
+    private var flashColor = Color.WHITE
+    private var flashAnimator: ValueAnimator? = null
+
     private val fillPaint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val ringPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE }
     private val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -100,6 +104,23 @@ class PrintButton @JvmOverloads constructor(
         ringPaint.strokeWidth = dp(3f)
         ringPaint.color = if (isEnabled) withAlpha(accentColor, 90) else Color.parseColor("#33383F")
         canvas.drawCircle(centreX, centreY, radius, ringPaint)
+
+        if (flashProgress > 0f && flashProgress < 1f) {
+            val fade = 1f - flashProgress
+
+            // Wash of colour over the face, dying away.
+            fillPaint.color = flashColor
+            fillPaint.alpha = (fade * 0.75f * 255).toInt().coerceIn(0, 255)
+            canvas.drawCircle(centreX, centreY, radius * 0.88f, fillPaint)
+            fillPaint.alpha = 255
+
+            // Ring pushing outward past the button's own edge.
+            ringPaint.color = flashColor
+            ringPaint.alpha = (fade * fade * 255).toInt().coerceIn(0, 255)
+            ringPaint.strokeWidth = dp(3f) + dp(5f) * fade
+            canvas.drawCircle(centreX, centreY, radius * (0.88f + 0.42f * flashProgress), ringPaint)
+            ringPaint.alpha = 255
+        }
 
         if (isBusy) {
             arcRect.set(centreX - radius, centreY - radius, centreX + radius, centreY + radius)
@@ -151,6 +172,27 @@ class PrintButton @JvmOverloads constructor(
         return super.onTouchEvent(event)
     }
 
+    /**
+     * Lights the button up in [color] and throws off an expanding ring.
+     *
+     * Fired twice per print: once neutrally the instant it is pressed, so the
+     * press feels answered before anything has been rolled, and again in the
+     * card's own colours once there is a card to have colours.
+     */
+    fun flash(color: Int) {
+        flashColor = color
+        flashAnimator?.cancel()
+        flashAnimator = ValueAnimator.ofFloat(0f, 1f).apply {
+            duration = 620
+            interpolator = DecelerateInterpolator()
+            addUpdateListener {
+                flashProgress = it.animatedValue as Float
+                invalidate()
+            }
+            start()
+        }
+    }
+
     private fun animatePress(target: Float) {
         pressAnimator?.cancel()
         pressAnimator = ValueAnimator.ofFloat(pressScale, target).apply {
@@ -187,6 +229,7 @@ class PrintButton @JvmOverloads constructor(
         super.onDetachedFromWindow()
         stopSweep()
         pressAnimator?.cancel()
+        flashAnimator?.cancel()
     }
 
     private fun darken(color: Int, factor: Float) = Color.rgb(

@@ -9,11 +9,13 @@ Everything runs offline on a **Sunmi V2** POS terminal. All 17,497 creatures
 Magic has ever printed on paper live on the device, artwork included.
 
 <p align="center">
-  <img src="docs/images/app.png" width="300" alt="The app: mana value dial and print button">
-  &nbsp;&nbsp;
-  <img src="docs/images/slip-qr.png" width="190" alt="A printed QR slip">
-  &nbsp;&nbsp;
-  <img src="docs/images/slip-artwork.png" width="190" alt="A printed artwork slip">
+  <img src="docs/images/app.png" width="235" alt="The app: mana value dial and print button">
+  &nbsp;
+  <img src="docs/images/glow.png" width="235" alt="The print animation, glowing in the card's colour identity">
+  &nbsp;
+  <img src="docs/images/slip-qr.png" width="150" alt="A printed QR slip">
+  &nbsp;
+  <img src="docs/images/slip-artwork.png" width="150" alt="A printed artwork slip">
 </p>
 
 ## What is Momir Basic?
@@ -44,6 +46,10 @@ card so you have something to physically put on the battlefield.
   the QR resolves against the local database.
 - **Slips fit a sleeve.** A Magic card is 63 × 88 mm. The renderer treats 88 mm
   as a hard ceiling and re-flows the layout to stay under it.
+- **It looks like something happened.** Pressing the button lights it up, the
+  screen edge takes on the card's colour identity, and a band of that colour
+  sweeps up and out of the top of the screen — which is where the V2's paper
+  actually comes out. Multicolour cards run their colours around the border.
 - **Resync.** With WiFi, the device pulls new cards straight from Scryfall and
   dithers their artwork itself. Without WiFi, nothing changes — everything works
   offline.

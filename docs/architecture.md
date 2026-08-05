@@ -109,6 +109,26 @@ has never printed a creature — is a bug you can land on.
 while the other hand holds cards. Long-pressing it renders a preview instead of
 printing.
 
+`GlowOverlay` is the print animation: the screen edge takes the card's colour
+identity and a band of it sweeps up and off the top edge, which on a V2 is where
+the paper emerges.
+
+The obvious way to draw a glow is `BlurMaskFilter`. It is also unsupported by
+the hardware-accelerated canvas, so reaching for it silently forces the view
+into a software layer — a full-screen 720 × 1440 bitmap re-rasterised on the CPU
+every frame, which on this chip is a slideshow. Everything in the overlay is
+built from gradients and stacked translucent fills instead: the edge halo is
+fourteen rounded-rect strokes of growing width and cubed-falloff alpha, the band
+is thin rects whose alpha follows a bell curve, and a multicolour identity
+becomes a `SweepGradient` around the perimeter. Measured on-device during the
+animation: ~35 fps.
+
+Colours come from `ManaColors`, which is deliberately not the printed frame
+palette — those are read by reflected light off white cardboard and come out
+muddy as emitted light on a near-black screen. Black gets violet, because there
+is no such thing as a black glow and every digital Magic client has made the
+same substitution for twenty years.
+
 `ScannerActivity` uses `android.hardware.Camera` on purpose: on API 25, Camera2
 runs at LEGACY hardware level, which is the old pipeline behind a newer
 interface plus a state machine you do not need. Camera1's preview callback hands

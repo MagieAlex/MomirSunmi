@@ -76,6 +76,27 @@ class CardRepository(private val context: Context) {
         )
         database.execSQL("CREATE INDEX IF NOT EXISTS ix_card_tokens ON card_tokens(card_oracle_id)")
         database.execSQL("CREATE INDEX IF NOT EXISTS ix_cards_uri ON cards(scryfall_uri)")
+
+        // Columns added after the first release. CREATE TABLE IF NOT EXISTS does
+        // not add them to a table that already exists, so an older corpus needs
+        // them applied by hand. The value stays empty until the next build or
+        // resync, which just means a colourless print animation.
+        addColumnIfMissing("cards", "color_identity", "TEXT NOT NULL DEFAULT ''")
+    }
+
+    private fun addColumnIfMissing(table: String, column: String, declaration: String) {
+        val database = db ?: return
+        val present = database.rawQuery("PRAGMA table_info($table)", null).use { c ->
+            val nameIndex = c.getColumnIndex("name")
+            generateSequence { if (c.moveToNext()) c.getString(nameIndex) else null }.toSet()
+        }
+        if (column in present) return
+        try {
+            database.execSQL("ALTER TABLE $table ADD COLUMN $column $declaration")
+            Log.i(TAG, "Migrated: added $table.$column")
+        } catch (e: SQLiteException) {
+            Log.e(TAG, "Cannot add $table.$column", e)
+        }
     }
 
     fun cardCount(): Int = scalar("SELECT COUNT(*) FROM cards")
@@ -224,13 +245,14 @@ class CardRepository(private val context: Context) {
     }
 
     /** Refreshes an existing row. Returns false if the card is not in the corpus yet. */
-    fun updateExisting(card: Card): Boolean {
+    fun updateExisting(card: Card, artUri: String): Boolean {
         val database = db ?: return false
         // Never touch art_* here. A refresh of oracle text must not orphan artwork
         // that is already sitting in the pack.
         val updated = database.compileStatement(
             """UPDATE cards SET name=?, mana_cost=?, mv=?, type_line=?, oracle_text=?,
-                   power=?, toughness=?, scryfall_uri=?, art_uri=? WHERE oracle_id=?"""
+                   power=?, toughness=?, color_identity=?, scryfall_uri=?, art_uri=?
+               WHERE oracle_id=?"""
         ).use { stmt ->
             stmt.bindString(1, card.name)
             stmt.bindString(2, card.manaCost)
@@ -239,9 +261,10 @@ class CardRepository(private val context: Context) {
             stmt.bindString(5, card.oracleText)
             card.power?.let { stmt.bindString(6, it) } ?: stmt.bindNull(6)
             card.toughness?.let { stmt.bindString(7, it) } ?: stmt.bindNull(7)
-            stmt.bindString(8, card.scryfallUri)
-            stmt.bindString(9, "")
-            stmt.bindString(10, card.oracleId)
+            stmt.bindString(8, card.colorIdentity)
+            stmt.bindString(9, card.scryfallUri)
+            stmt.bindString(10, artUri)
+            stmt.bindString(11, card.oracleId)
             stmt.executeUpdateDelete()
         }
         return updated > 0
@@ -250,11 +273,12 @@ class CardRepository(private val context: Context) {
     fun insert(card: Card, artUri: String) {
         db?.execSQL(
             """INSERT OR IGNORE INTO cards(oracle_id, name, mana_cost, mv, type_line,
-                   oracle_text, power, toughness, scryfall_uri, art_uri)
-               VALUES (?,?,?,?,?,?,?,?,?,?)""",
+                   oracle_text, power, toughness, color_identity, scryfall_uri, art_uri)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
             arrayOf(
                 card.oracleId, card.name, card.manaCost, card.manaValue, card.typeLine,
-                card.oracleText, card.power, card.toughness, card.scryfallUri, artUri,
+                card.oracleText, card.power, card.toughness, card.colorIdentity,
+                card.scryfallUri, artUri,
             ),
         )
     }
@@ -279,10 +303,11 @@ class CardRepository(private val context: Context) {
         oracleText = getString(5),
         power = if (isNull(6)) null else getString(6),
         toughness = if (isNull(7)) null else getString(7),
-        scryfallUri = getString(8),
-        artOffset = if (isNull(9)) null else getLong(9),
-        artLength = if (isNull(10)) null else getInt(10),
-        artHeight = if (isNull(11)) null else getInt(11),
+        colorIdentity = if (isNull(8)) "" else getString(8),
+        scryfallUri = getString(9),
+        artOffset = if (isNull(10)) null else getLong(10),
+        artLength = if (isNull(11)) null else getInt(11),
+        artHeight = if (isNull(12)) null else getInt(12),
     )
 
     companion object {
@@ -292,7 +317,7 @@ class CardRepository(private val context: Context) {
 
         private const val SELECT_COLUMNS =
             "SELECT oracle_id, name, mana_cost, mv, type_line, oracle_text, power, " +
-                "toughness, scryfall_uri, art_off, art_len, art_h FROM cards"
+                "toughness, color_identity, scryfall_uri, art_off, art_len, art_h FROM cards"
     }
 }
 

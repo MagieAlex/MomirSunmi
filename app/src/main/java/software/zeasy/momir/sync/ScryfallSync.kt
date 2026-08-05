@@ -135,10 +135,11 @@ class ScryfallSync(
                         if (!isMomirLegal(json)) continue
                         val card = toCard(json) ?: continue
 
-                        if (repository.updateExisting(card)) {
+                        val artUri = artUriOf(json)
+                        if (repository.updateExisting(card, artUri)) {
                             refreshed++
                         } else {
-                            repository.insert(card, artUriOf(json))
+                            repository.insert(card, artUri)
                             added++
                         }
                     }
@@ -265,6 +266,11 @@ class ScryfallSync(
             oracleText = oracleText,
             power = face?.optString("power").orEmpty().ifEmpty { json.optString("power") }.ifEmpty { null },
             toughness = face?.optString("toughness").orEmpty().ifEmpty { json.optString("toughness") }.ifEmpty { null },
+            // Colour identity is a property of the whole card, so it is always
+            // top-level even for a two-faced one.
+            colorIdentity = json.optJSONArray("color_identity")?.let { array ->
+                buildString { for (i in 0 until array.length()) append(array.optString(i)) }
+            }.orEmpty(),
             scryfallUri = json.optString("scryfall_uri").substringBefore('?'),
             artOffset = null,
             artLength = null,

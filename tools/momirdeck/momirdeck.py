@@ -224,6 +224,9 @@ def extract_card(card: dict) -> "CardRow | None":
         oracle_text=oracle_text,
         power=face.get("power") or card.get("power"),
         toughness=face.get("toughness") or card.get("toughness"),
+        # Colour identity, not colour: it is defined on the whole card, so it is
+        # always top-level even for a two-faced one.
+        color_identity="".join(card.get("color_identity") or []),
         scryfall_uri=(card.get("scryfall_uri") or "").split("?")[0],
         art_uri=image_uris.get("art_crop") or "",
     )
@@ -239,6 +242,7 @@ class CardRow:
     oracle_text: str
     power: "str | None"
     toughness: "str | None"
+    color_identity: str
     scryfall_uri: str
     art_uri: str
 
@@ -261,6 +265,8 @@ CREATE TABLE IF NOT EXISTS cards (
     oracle_text  TEXT NOT NULL DEFAULT '',
     power        TEXT,
     toughness    TEXT,
+    -- WUBRG letters. Drives the colour of the print animation on the device.
+    color_identity TEXT NOT NULL DEFAULT '',
     scryfall_uri TEXT NOT NULL DEFAULT '',
     art_uri      TEXT NOT NULL DEFAULT '',
     art_off      INTEGER,
@@ -298,10 +304,24 @@ CREATE INDEX IF NOT EXISTS ix_card_tokens ON card_tokens(card_oracle_id);
 """
 
 
+# Columns added after the first release. CREATE TABLE IF NOT EXISTS will not add
+# them to a database that already exists, so they are applied by hand.
+MIGRATIONS = [
+    ("cards", "color_identity", "TEXT NOT NULL DEFAULT ''"),
+]
+
+
 def connect(db_path: str) -> sqlite3.Connection:
     conn = sqlite3.connect(db_path, timeout=30)
     conn.executescript(SCHEMA)
     conn.execute("PRAGMA journal_mode=DELETE")   # keep it to a single file for adb push
+
+    for table, column, decl in MIGRATIONS:
+        existing = {row[1] for row in conn.execute(f"PRAGMA table_info({table})")}
+        if column not in existing:
+            log(f"  migrating: adding {table}.{column}")
+            conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {decl}")
+    conn.commit()
     return conn
 
 
@@ -428,19 +448,21 @@ def _upsert(conn: sqlite3.Connection, rows: "list[CardRow]", existing: set) -> "
             # the artwork already in the pack stays valid.
             conn.execute(
                 """UPDATE cards SET name=?, mana_cost=?, mv=?, type_line=?,
-                       oracle_text=?, power=?, toughness=?, scryfall_uri=?, art_uri=?
+                       oracle_text=?, power=?, toughness=?, color_identity=?,
+                       scryfall_uri=?, art_uri=?
                    WHERE oracle_id=?""",
                 (r.name, r.mana_cost, r.mv, r.type_line, r.oracle_text,
-                 r.power, r.toughness, r.scryfall_uri, r.art_uri, r.oracle_id),
+                 r.power, r.toughness, r.color_identity, r.scryfall_uri, r.art_uri,
+                 r.oracle_id),
             )
             updated += 1
         else:
             conn.execute(
                 """INSERT INTO cards(oracle_id, name, mana_cost, mv, type_line,
-                       oracle_text, power, toughness, scryfall_uri, art_uri)
-                   VALUES (?,?,?,?,?,?,?,?,?,?)""",
+                       oracle_text, power, toughness, color_identity, scryfall_uri, art_uri)
+                   VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
                 (r.oracle_id, r.name, r.mana_cost, r.mv, r.type_line, r.oracle_text,
-                 r.power, r.toughness, r.scryfall_uri, r.art_uri),
+                 r.power, r.toughness, r.color_identity, r.scryfall_uri, r.art_uri),
             )
             existing.add(r.oracle_id)
             added += 1
