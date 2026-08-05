@@ -169,7 +169,17 @@ class SlipRenderer {
         } else null
         val rulesHeight = rulesLayout?.let { it.height + blockGap + ruleThickness + blockGap } ?: 0
 
-        val total = (fixed + bodyHeight + rulesHeight).coerceAtMost(budgetDots)
+        // Every slip comes out the same length, so a stack of them behaves like a
+        // stack of cards. Whatever a particular card does not need is given to the
+        // space around the picture rather than left as a blank tail, which would
+        // read as a mistake rather than as layout.
+        val naturalHeight = fixed + bodyHeight + rulesHeight
+        val slack = (budgetDots - naturalHeight).coerceAtLeast(0)
+        // Split above and below the picture. Anything left over by rounding just
+        // ends up as blank paper at the bottom, which is where it belongs.
+        val bodyPad = if (bodyHeight > 0) slack / 2 else 0
+
+        val total = budgetDots
 
         // ---- draw ----------------------------------------------------------
         val bitmap = Bitmap.createBitmap(width, total, Bitmap.Config.ARGB_8888)
@@ -221,7 +231,7 @@ class SlipRenderer {
         if (bodyHeight > 0) {
             y += blockGap
             drawRule(canvas, y)
-            y += ruleThickness + blockGap
+            y += ruleThickness + blockGap + bodyPad
 
             if (wantsArt && art != null) {
                 drawArt(canvas, art, artHeight, plan.artRows, y)
@@ -229,7 +239,7 @@ class SlipRenderer {
                 val size = plan.qrModule * (bodyQr.size + QR_QUIET_MODULES * 2)
                 drawQr(canvas, bodyQr, plan.qrModule, (width - size) / 2, y)
             }
-            y += bodyHeight
+            y += bodyHeight + bodyPad
         }
 
         if (rulesLayout != null) {
@@ -282,14 +292,19 @@ class SlipRenderer {
         )
 
         for ((rulesSize, artScale) in ladder) {
-            val artRows = if (wantsArt) (artHeight * artScale).toInt() else 0
-            val qrModule = if (!wantsArt && qrSize > 0) largestQrModule(qrSize, budget - fixed) else 0
-            val bodyHeight = if (wantsArt) artRows else qrModule * (qrSize + QR_QUIET_MODULES * 2)
-
             val rulesHeight = if (rulesText.isNotBlank()) {
                 buildLayout(rulesText, textPaint(rulesSize), contentWidth).height +
                     blockGap + ruleThickness + blockGap
             } else 0
+
+            val artRows = if (wantsArt) (artHeight * artScale).toInt() else 0
+            // Size the QR against what is genuinely left over, not against the
+            // whole budget. With a fixed slip length there is no reason to print
+            // a small code and then pad the slip out with white paper.
+            val qrModule = if (!wantsArt && qrSize > 0) {
+                largestQrModule(qrSize, budget - fixed - rulesHeight)
+            } else 0
+            val bodyHeight = if (wantsArt) artRows else qrModule * (qrSize + QR_QUIET_MODULES * 2)
 
             if (fixed + bodyHeight + rulesHeight <= budget) {
                 return Plan(rulesSize, artRows, qrModule, Int.MAX_VALUE)
@@ -505,11 +520,12 @@ class SlipRenderer {
         private const val QR_MIN_MODULE = 4
 
         /**
-         * Capped at 6 dots (0.75 mm) per module. Larger scans no better and every
-         * extra step costs about 4 mm of slip length, which is length the rules
-         * text needs more than the QR does.
+         * 9 dots per module is where a 33-module symbol stops fitting across 364
+         * dots, so width caps this before anything else does. There used to be a
+         * tighter cap to stop the QR eating slip length, which stopped mattering
+         * once every slip became the same length regardless.
          */
-        private const val QR_MAX_MODULE = 6
+        private const val QR_MAX_MODULE = 9
 
         /**
          * 4 dots per module is 0.5 mm, the size a QR on a business card uses.

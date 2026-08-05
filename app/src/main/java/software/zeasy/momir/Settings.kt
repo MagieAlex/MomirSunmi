@@ -25,10 +25,17 @@ class Settings(context: Context) {
         get() = prefs.getInt(KEY_COPIES, 1).coerceIn(1, 5)
         set(value) = prefs.edit().putInt(KEY_COPIES, value.coerceIn(1, 5)).apply()
 
-    /** Total slip length. A real Magic card is 88 mm, so that is the ceiling. */
-    var maxSlipMm: Float
-        get() = prefs.getFloat(KEY_MAX_SLIP, DEFAULT_MAX_SLIP_MM).coerceIn(50f, 88f)
-        set(value) = prefs.edit().putFloat(KEY_MAX_SLIP, value.coerceIn(50f, 88f)).apply()
+    /**
+     * Slip length, and every slip gets exactly this - it is not a ceiling.
+     *
+     * Uniform slips stack and shuffle like cards; slips that vary with how much
+     * rules text a creature happens to have stack like receipts. 88 mm is the
+     * long edge of a real Magic card, so at the default a printed slip is the
+     * same length as the card it sits next to in a sleeve.
+     */
+    var slipLengthMm: Float
+        get() = prefs.getFloat(KEY_SLIP_LENGTH, DEFAULT_SLIP_LENGTH_MM).coerceIn(50f, 88f)
+        set(value) = prefs.edit().putFloat(KEY_SLIP_LENGTH, value.coerceIn(50f, 88f)).apply()
 
     /** Paper fed after the last dot so the slip clears the tear bar. */
     var tearFeedMm: Float
@@ -39,9 +46,9 @@ class Settings(context: Context) {
         get() = prefs.getInt(KEY_LAST_MV, 3)
         set(value) = prefs.edit().putInt(KEY_LAST_MV, value).apply()
 
-    /** How many dots the layout may actually occupy, once the feed is paid for. */
+    /** How many dots the layout occupies, once the feed is paid for. */
     val contentBudgetDots: Int
-        get() = (EscPos.mmToDots(maxSlipMm) - EscPos.mmToDots(tearFeedMm)).coerceAtLeast(200)
+        get() = (EscPos.mmToDots(slipLengthMm) - EscPos.mmToDots(tearFeedMm)).coerceAtLeast(200)
 
     val tearFeedDots: Int
         get() = EscPos.mmToDots(tearFeedMm)
@@ -49,12 +56,12 @@ class Settings(context: Context) {
     companion object {
         private const val KEY_MODE = "print_mode"
         private const val KEY_COPIES = "copies"
-        private const val KEY_MAX_SLIP = "max_slip_mm"
+        private const val KEY_SLIP_LENGTH = "max_slip_mm"
         private const val KEY_TEAR_FEED = "tear_feed_mm"
         private const val KEY_LAST_MV = "last_mana_value"
 
         /** The long edge of a Magic card. */
-        const val DEFAULT_MAX_SLIP_MM = 88f
+        const val DEFAULT_SLIP_LENGTH_MM = 88f
 
         /** Measured on a V2; adjust in settings if your tear comes out short. */
         const val DEFAULT_TEAR_FEED_MM = 12f

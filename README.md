@@ -44,8 +44,10 @@ card so you have something to physically put on the battlefield.
 - **Scan a slip.** Point the V2's camera at a QR on a slip you printed earlier
   and it resolves the card and offers to print its tokens. No network needed —
   the QR resolves against the local database.
-- **Slips fit a sleeve.** A Magic card is 63 × 88 mm. The renderer treats 88 mm
-  as a hard ceiling and re-flows the layout to stay under it.
+- **Slips fit a sleeve, and they are all the same length.** A Magic card is
+  63 × 88 mm, and every slip prints to exactly 88 mm — so a stack of them
+  behaves like a stack of cards rather than a pile of receipts. The layout
+  re-flows to fill or fit, whichever it needs.
 - **It looks like something happened.** Pressing the button lights it up, the
   screen edge takes on the card's colour identity, and a band of that colour
   sweeps up and out of the top of the screen — which is where the V2's paper
@@ -108,8 +110,9 @@ where it left off.
 ### First-run calibration
 
 The one setting worth getting right is **feed after printing** — how much paper
-is pushed past the tear bar. It varies between units and paper rolls, and it is
-what decides whether your slips fit a sleeve.
+is pushed past the tear bar. It varies between units and paper rolls, and since
+slip length is fixed, it is the number that decides whether 88 mm of slip
+actually comes out as 88 mm of paper.
 
 Print the test slip, tear it off, measure it, and adjust until the measured
 length matches what the app reports. The default is 12 mm.

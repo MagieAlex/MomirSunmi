@@ -418,7 +418,7 @@ class MainActivity : AppCompatActivity() {
         val view = DialogSettingsBinding.inflate(layoutInflater)
 
         view.copiesSeek.progress = settings.copies - 1
-        view.slipSeek.progress = (settings.maxSlipMm - SLIP_MIN_MM).toInt()
+        view.slipSeek.progress = (settings.slipLengthMm - SLIP_MIN_MM).toInt()
         view.feedSeek.progress = settings.tearFeedMm.toInt()
 
         fun refreshLabels() {
@@ -446,7 +446,7 @@ class MainActivity : AppCompatActivity() {
             .setView(view.root)
             .setPositiveButton(R.string.close) { _, _ ->
                 settings.copies = view.copiesSeek.progress + 1
-                settings.maxSlipMm = view.slipSeek.progress + SLIP_MIN_MM
+                settings.slipLengthMm = view.slipSeek.progress + SLIP_MIN_MM
                 settings.tearFeedMm = view.feedSeek.progress.toFloat()
             }
             .show()

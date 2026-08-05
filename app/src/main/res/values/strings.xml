@@ -21,8 +21,8 @@
     <string name="cancel">Cancel</string>
 
     <string name="settings_copies">Copies per print</string>
-    <string name="settings_slip_length">Maximum slip length</string>
-    <string name="settings_slip_length_hint">A Magic card is 88 mm. Longer slips will not fit a sleeve.</string>
+    <string name="settings_slip_length">Slip length</string>
+    <string name="settings_slip_length_hint">Every slip is printed to exactly this length, so they stack like cards. A Magic card is 88 mm.</string>
     <string name="settings_tear_feed">Feed after printing</string>
     <string name="settings_tear_feed_hint">Paper fed past the tear bar. Increase if the last line gets cut off, decrease if slips come out too long.</string>
     <string name="settings_test_print">Test print</string>

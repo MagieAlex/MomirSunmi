@@ -2,32 +2,56 @@
 
 Everything between "a card was rolled" and "paper comes out".
 
-## The length budget
+## Every slip is the same length
 
 This is the constraint the whole layout is built around.
 
 A printed slip has to slide into a normal Magic sleeve, so it must be no longer
-than a real card: **63 × 88 mm**.
+than a real card: **63 × 88 mm**. And it is not merely *allowed* to be 88 mm —
+every slip is printed to exactly that, whatever the card. Uniform slips stack,
+fan and shuffle like cards. Slips whose length tracks how much rules text a
+creature happens to have stack like receipts.
 
 Width is not a problem. The V2 prints 58 mm paper at 203 dpi with 384 printable
 dots, which is 48 mm — comfortably inside 63 mm.
 
-Length is. At 8 dots/mm, the entire slip must fit in **704 dots**, and part of
-that is spent feeding the paper past the tear bar, which sits roughly 12 mm above
-the print head:
+Length is the interesting one. At 8 dots/mm the whole slip is **704 dots**, and
+part of that is spent feeding the paper past the tear bar, which sits roughly
+12 mm above the print head:
 
 ```
-88 mm sleeve limit          704 dots
+88 mm slip length           704 dots
 − 12 mm tear feed         −  96 dots
 ────────────────────────────────────
-  76 mm for the layout      608 dots
+  76 mm of layout           608 dots   ← every slip, exactly
 ```
 
 Both numbers are settings, because the tear-bar distance varies between units
 and paper rolls. Settings → Test print produces a calibration slip: tear it off,
 measure it, adjust until the measured length matches what the app reports.
 
-## When a card does not fit
+So the renderer has two problems, not one: cards that want more than 608 dots,
+and cards that want less.
+
+![Six slips, all exactly 88 mm](images/slips-uniform.png)
+
+## When a card wants less
+
+A vanilla 3/3 with one line of rules text leaves a lot of paper unaccounted for.
+Leaving it blank at the bottom would read as a mistake rather than as layout, so
+the slack is spent instead:
+
+1. **The QR grows.** In QR mode the code is sized against what is actually left
+   after the text, up to 9 dots per module, where a 33-module symbol stops
+   fitting across 364 dots. A bigger code also scans better, so this is free in
+   both directions.
+2. **What remains pads the picture**, split evenly above and below. The image
+   ends up optically centred between the type line and the rules text.
+
+Artwork cannot grow — it is stored at 384 dots wide and blitted 1:1, and
+upscaling would destroy the dithering — so artwork slips lean on step 2.
+
+## When a card wants more
 
 Eldrazi with six keywords do not fit in 608 dots. The renderer does **not**
 scale the layout down — scaling would resample the artwork and destroy the
@@ -50,11 +74,10 @@ cropping the artwork is. Cropping takes rows off the top and bottom evenly so
 the subject stays centred, and — crucially — keeps the pixel grid 1:1.
 
 If nothing on the ladder fits, the last rung is taken and the rules text is
-ellipsised into whatever vertical space remains. `Raster` never comes back longer
-than the budget.
+ellipsised into whatever vertical space remains.
 
-Observed results across a sample of artwork slips: 74–88 mm, with the longest
-sitting exactly on the cap.
+`Raster` always comes back at exactly the configured length — measured across a
+sample of both modes: 608 dots, 88.0 mm, every time.
 
 ## Layout
 
@@ -135,7 +158,7 @@ comes out fuzzy.
 | | Modules | Dot size | Why |
 |---|---:|---:|---|
 | Header QR | 4 | 0.5 mm | The size a QR on a business card uses. 3 fits more comfortably but thermal dots bleed into their neighbours, and 0.375 mm modules start closing the gaps a decoder needs. |
-| Body QR | 4–6 | 0.5–0.75 mm | Capped at 6: larger scans no better and every step costs ~4 mm of length, which the rules text needs more. |
+| Body QR | 4–9 | 0.5–1.1 mm | Grows into whatever the rules text leaves. Width caps it at 9. |
 
 Error correction is **M (15 %)**. Slips get thumbed, folded and left in sleeves;
 L is smaller but does not survive a smudge across a timing pattern.
