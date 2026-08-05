@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Momir</string>
+
+    <string name="mode_qr">QR code</string>
+    <string name="mode_art">Artwork</string>
+
+    <string name="print">PRINT</string>
+    <string name="printing">…</string>
+
+    <string name="creatures_at_mv">%1$s creatures at mana value %2$d</string>
+    <string name="no_corpus_title">No card data on this device</string>
+    <string name="no_corpus_body">Build the corpus on a PC and push it over adb:\n\npython momirdeck.py build-db\npython momirdeck.py build-art\npython momirdeck.py push\n\nOr tap Resync to download it here, which is slower.</string>
+
+    <string name="settings">Settings</string>
+    <string name="resync">Resync</string>
+    <string name="close">Close</string>
+    <string name="cancel">Cancel</string>
+
+    <string name="settings_copies">Copies per print</string>
+    <string name="settings_slip_length">Maximum slip length</string>
+    <string name="settings_slip_length_hint">A Magic card is 88 mm. Longer slips will not fit a sleeve.</string>
+    <string name="settings_tear_feed">Feed after printing</string>
+    <string name="settings_tear_feed_hint">Paper fed past the tear bar. Increase if the last line gets cut off, decrease if slips come out too long.</string>
+    <string name="settings_test_print">Test print</string>
+    <string name="settings_printer">Printer</string>
+    <string name="settings_corpus">Card data</string>
+
+    <string name="mm_format">%.0f mm</string>
+    <string name="printer_not_connected">Printer service not connected</string>
+    <string name="print_failed">Print failed: %1$s</string>
+    <string name="no_card_found">No creature at mana value %1$d</string>
+    <string name="slip_length">%1$s · %2$.0f mm</string>
+
+    <string name="scan">Scan a slip</string>
+    <string name="scan_hint">Hold the QR code on a printed slip inside the frame</string>
+    <string name="camera_denied">Camera permission is needed to scan slips</string>
+    <string name="camera_unavailable">Cannot open the camera</string>
+    <string name="scan_not_found">That slip is not in the card data on this device</string>
+    <string name="scan_not_a_card">Not a Momir slip: %1$s</string>
+
+    <plurals name="tokens_button">
+        <item quantity="one">%1$d token</item>
+        <item quantity="other">%1$d tokens</item>
+    </plurals>
+    <string name="tokens_title">%1$s creates</string>
+    <string name="tokens_none">%1$s does not create any tokens</string>
+    <string name="tokens_print_all">Print all</string>
+
+    <string name="sync_running">Resyncing: %1$s</string>
+    <string name="sync_done">Resync done: %1$d new, %2$d artworks</string>
+    <string name="sync_failed">Resync failed: %1$s</string>
+    <string name="sync_already_running">Resync already running</string>
+</resources>

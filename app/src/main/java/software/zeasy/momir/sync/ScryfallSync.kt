@@ -1,0 +1,311 @@
+package software.zeasy.momir.sync
+
+import android.util.Log
+import org.json.JSONArray
+import org.json.JSONObject
+import software.zeasy.momir.data.ArtPack
+import software.zeasy.momir.data.Card
+import software.zeasy.momir.data.CardRepository
+import software.zeasy.momir.print.EscPos
+import java.io.BufferedReader
+import java.io.InputStreamReader
+import java.net.HttpURLConnection
+import java.net.URL
+import java.util.zip.GZIPInputStream
+
+/**
+ * Pulls new cards and artwork straight from Scryfall. There is no server in the
+ * middle - Scryfall *is* the backend, and the device speaks to it directly.
+ *
+ * ## Why streaming matters here
+ *
+ * The Oracle bulk file is about 23 MB gzipped and roughly 180 MB expanded. The
+ * V2 has 909 MB of RAM with maybe 340 MB actually free. Buffering that file, or
+ * parsing it as one JSON array, would kill the app.
+ *
+ * Scryfall now publishes bulk data as JSONL - one complete card object per line -
+ * which turns the whole problem into a loop over readLine(). Peak memory is one
+ * card. The legacy single-array form is still handled as a fallback.
+ */
+class ScryfallSync(
+    private val repository: CardRepository,
+    private val artPack: ArtPack,
+) {
+
+    interface Progress {
+        fun onStage(stage: String)
+        fun onProgress(done: Int, total: Int)
+        fun isCancelled(): Boolean
+    }
+
+    data class Outcome(
+        val newCards: Int,
+        val refreshedCards: Int,
+        val newArtwork: Int,
+        val failedArtwork: Int,
+        val bulkTimestamp: String?,
+        val error: String? = null,
+    )
+
+    fun run(progress: Progress, fetchArtwork: Boolean = true): Outcome {
+        return try {
+            progress.onStage("Checking Scryfall")
+            val bulk = fetchBulkEntry() ?: return Outcome(0, 0, 0, 0, null, "Scryfall has no oracle_cards export")
+
+            val lastSeen = repository.meta(META_BULK_TIMESTAMP)
+            val cardResult = if (bulk.updatedAt == lastSeen) {
+                progress.onStage("Card data already current")
+                CardCounts(0, 0)
+            } else {
+                streamCards(bulk, progress)
+            }
+
+            var newArt = 0
+            var failedArt = 0
+            if (fetchArtwork && !progress.isCancelled()) {
+                val artResult = fetchMissingArtwork(progress)
+                newArt = artResult.first
+                failedArt = artResult.second
+            }
+
+            if (!progress.isCancelled()) {
+                repository.setMeta(META_BULK_TIMESTAMP, bulk.updatedAt)
+                repository.setMeta(META_LAST_SYNC, System.currentTimeMillis().toString())
+            }
+
+            Outcome(cardResult.added, cardResult.refreshed, newArt, failedArt, bulk.updatedAt)
+        } catch (e: Exception) {
+            Log.e(TAG, "Sync failed", e)
+            Outcome(0, 0, 0, 0, null, e.message ?: e.javaClass.simpleName)
+        }
+    }
+
+    // ------------------------------------------------------------------------
+
+    private data class BulkEntry(val url: String, val updatedAt: String, val isJsonl: Boolean)
+    private data class CardCounts(val added: Int, val refreshed: Int)
+
+    private fun fetchBulkEntry(): BulkEntry? {
+        openConnection(BULK_INDEX_URL, "application/json").use { stream ->
+            val body = stream.bufferedReader().readText()
+            val data = JSONObject(body).optJSONArray("data") ?: return null
+            for (i in 0 until data.length()) {
+                val entry = data.getJSONObject(i)
+                if (entry.optString("type") != "oracle_cards") continue
+                val jsonl = entry.optString("jsonl_download_uri", "")
+                val legacy = entry.optString("download_uri", "")
+                val url = if (jsonl.isNotEmpty()) jsonl else legacy
+                if (url.isEmpty()) return null
+                return BulkEntry(url, entry.optString("updated_at"), jsonl.isNotEmpty())
+            }
+        }
+        return null
+    }
+
+    private fun streamCards(bulk: BulkEntry, progress: Progress): CardCounts {
+        progress.onStage("Downloading card data")
+
+        var added = 0
+        var refreshed = 0
+        var scanned = 0
+
+        openConnection(bulk.url, "*/*").use { raw ->
+            val stream = if (bulk.url.endsWith(".gz")) GZIPInputStream(raw, 1 shl 16) else raw
+            BufferedReader(InputStreamReader(stream, Charsets.UTF_8), 1 shl 16).use { reader ->
+                repository.beginTransaction()
+                try {
+                    while (true) {
+                        if (progress.isCancelled()) break
+                        val line = reader.readLine() ?: break
+                        val trimmed = line.trim().trimEnd(',')
+                        if (trimmed.isEmpty() || trimmed == "[" || trimmed == "]") continue
+                        if (!trimmed.startsWith("{")) continue
+
+                        val json = try {
+                            JSONObject(trimmed)
+                        } catch (e: Exception) {
+                            continue
+                        }
+
+                        scanned++
+                        if (scanned % 2000 == 0) {
+                            progress.onStage("Scanned $scanned cards")
+                        }
+
+                        if (!isMomirLegal(json)) continue
+                        val card = toCard(json) ?: continue
+
+                        if (repository.updateExisting(card)) {
+                            refreshed++
+                        } else {
+                            repository.insert(card, artUriOf(json))
+                            added++
+                        }
+                    }
+                    repository.setTransactionSuccessful()
+                } finally {
+                    repository.endTransaction()
+                }
+            }
+        }
+
+        progress.onStage("$added new, $refreshed refreshed")
+        return CardCounts(added, refreshed)
+    }
+
+    private fun fetchMissingArtwork(progress: Progress): Pair<Int, Int> {
+        val pending = repository.cardsMissingArt(MAX_ART_PER_SYNC)
+        if (pending.isEmpty()) return 0 to 0
+
+        progress.onStage("Fetching ${pending.size} artworks")
+        if (!artPack.isOpen && !artPack.open()) {
+            artPack.createIfMissing(EscPos.PRINT_WIDTH_DOTS)
+            artPack.open()
+        }
+
+        var ok = 0
+        var failed = 0
+        pending.forEachIndexed { index, (oracleId, artUri) ->
+            if (progress.isCancelled()) return ok to failed
+            progress.onProgress(index + 1, pending.size)
+
+            try {
+                val bytes = openConnection(artUri, "image/*").use { it.readBytes() }
+                val dithered = Dither.fromJpeg(bytes)
+                if (dithered == null) {
+                    failed++
+                } else {
+                    val offset = artPack.append(dithered.raster)
+                    if (offset == null) {
+                        failed++
+                    } else {
+                        repository.recordArt(oracleId, offset, dithered.raster.size, dithered.height)
+                        ok++
+                    }
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "Artwork failed for $oracleId: ${e.message}")
+                failed++
+            }
+
+            // Scryfall asks for no more than ten requests a second.
+            Thread.sleep(REQUEST_INTERVAL_MS)
+        }
+        artPack.sync()
+        return ok to failed
+    }
+
+    // ------------------------------------------------------------------------
+    // Filtering - must stay in step with tools/momirdeck/momirdeck.py
+    // ------------------------------------------------------------------------
+
+    /**
+     * See momirdeck.is_momir_legal for the reasoning, in particular why paper-ness
+     * is decided by legality and not by the `digital` flag. Any change here needs
+     * the same change there, or a resync would quietly disagree with the corpus
+     * that was pushed over adb.
+     */
+    private fun isMomirLegal(json: JSONObject): Boolean {
+        if (json.optString("layout") in EXCLUDED_LAYOUTS) return false
+        if (json.optString("set_type") in EXCLUDED_SET_TYPES) return false
+        if (!isPaperCard(json)) return false
+        if (json.optString("name").startsWith("A-")) return false
+
+        val typeLine = typeLineForFilter(json)
+        if (!typeLine.contains("Creature")) return false
+        if (typeLine.contains("Token")) return false
+        return true
+    }
+
+    private fun isPaperCard(json: JSONObject): Boolean {
+        val legalities = json.optJSONObject("legalities") ?: return false
+        return PAPER_FORMATS.any { legalities.optString(it, "not_legal") != "not_legal" }
+    }
+
+    private fun typeLineForFilter(json: JSONObject): String {
+        if (json.optString("layout") in BOTH_HALVES_ON_FRONT) return json.optString("type_line")
+        val face = frontFace(json)
+        val faceType = face?.optString("type_line").orEmpty()
+        return faceType.ifEmpty { json.optString("type_line") }
+    }
+
+    private fun frontFace(json: JSONObject): JSONObject? {
+        val faces: JSONArray = json.optJSONArray("card_faces") ?: return null
+        return if (faces.length() > 0) faces.optJSONObject(0) else null
+    }
+
+    private fun toCard(json: JSONObject): Card? {
+        val oracleId = json.optString("oracle_id").ifEmpty { return null }
+        val face = frontFace(json)
+
+        var manaCost = face?.optString("mana_cost").orEmpty().ifEmpty { json.optString("mana_cost") }
+        var oracleText = face?.optString("oracle_text").orEmpty().ifEmpty { json.optString("oracle_text") }
+
+        if (json.optString("layout") in BOTH_HALVES_ON_FRONT) {
+            val faces = json.optJSONArray("card_faces")
+            if (faces != null) {
+                val parts = ArrayList<String>(faces.length())
+                for (i in 0 until faces.length()) {
+                    val f = faces.getJSONObject(i)
+                    parts.add(
+                        "${f.optString("name")} ${f.optString("mana_cost")}\n${f.optString("oracle_text")}".trim()
+                    )
+                }
+                oracleText = parts.joinToString("\n\n")
+                manaCost = json.optString("mana_cost").ifEmpty { manaCost }
+            }
+        }
+
+        return Card(
+            oracleId = oracleId,
+            name = json.optString("name"),
+            manaCost = manaCost,
+            manaValue = Math.round(json.optDouble("cmc", 0.0)).toInt(),
+            typeLine = json.optString("type_line").ifEmpty { face?.optString("type_line").orEmpty() },
+            oracleText = oracleText,
+            power = face?.optString("power").orEmpty().ifEmpty { json.optString("power") }.ifEmpty { null },
+            toughness = face?.optString("toughness").orEmpty().ifEmpty { json.optString("toughness") }.ifEmpty { null },
+            scryfallUri = json.optString("scryfall_uri").substringBefore('?'),
+            artOffset = null,
+            artLength = null,
+            artHeight = null,
+        )
+    }
+
+    private fun artUriOf(json: JSONObject): String {
+        val images = json.optJSONObject("image_uris") ?: frontFace(json)?.optJSONObject("image_uris")
+        return images?.optString("art_crop").orEmpty()
+    }
+
+    // ------------------------------------------------------------------------
+
+    private fun openConnection(url: String, accept: String) =
+        (URL(url).openConnection() as HttpURLConnection).apply {
+            // Scryfall rejects requests without both of these.
+            setRequestProperty("User-Agent", USER_AGENT)
+            setRequestProperty("Accept", accept)
+            connectTimeout = 20_000
+            readTimeout = 60_000
+            instanceFollowRedirects = true
+        }.inputStream
+
+    companion object {
+        private const val TAG = "ScryfallSync"
+        private const val BULK_INDEX_URL = "https://api.scryfall.com/bulk-data"
+        private const val USER_AGENT = "MomirSunmi/1.0 (+https://github.com/MagieAlex/MomirSunmi)"
+
+        private const val REQUEST_INTERVAL_MS = 100L
+        private const val MAX_ART_PER_SYNC = 4000
+
+        const val META_BULK_TIMESTAMP = "bulk_updated_at"
+        const val META_LAST_SYNC = "last_sync_ms"
+
+        private val EXCLUDED_LAYOUTS = setOf(
+            "token", "double_faced_token", "emblem", "art_series", "vanguard",
+            "scheme", "planar", "augment", "host", "reversible_card",
+        )
+        private val EXCLUDED_SET_TYPES = setOf("funny", "memorabilia", "token", "minigame", "alchemy")
+        private val BOTH_HALVES_ON_FRONT = setOf("split", "adventure", "flip")
+        private val PAPER_FORMATS = listOf("vintage", "legacy", "commander")
+    }
+}

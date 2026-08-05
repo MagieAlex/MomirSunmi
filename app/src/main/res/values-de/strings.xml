@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="mode_qr">QR-Code</string>
+    <string name="mode_art">Artwork</string>
+
+    <string name="print">DRUCKEN</string>
+
+    <string name="creatures_at_mv">%1$s Kreaturen mit Manabetrag %2$d</string>
+    <string name="no_corpus_title">Keine Kartendaten auf dem Gerät</string>
+    <string name="no_corpus_body">Datensatz am PC bauen und per adb überspielen:\n\npython momirdeck.py build-db\npython momirdeck.py build-art\npython momirdeck.py push\n\nOder auf Resync tippen und alles hier laden — dauert deutlich länger.</string>
+
+    <string name="settings">Einstellungen</string>
+    <string name="resync">Resync</string>
+    <string name="close">Schließen</string>
+    <string name="cancel">Abbrechen</string>
+
+    <string name="settings_copies">Kopien pro Druck</string>
+    <string name="settings_slip_length">Maximale Zettellänge</string>
+    <string name="settings_slip_length_hint">Eine Magic-Karte ist 88 mm lang. Längere Zettel passen in keine Sleeve.</string>
+    <string name="settings_tear_feed">Vorschub nach dem Druck</string>
+    <string name="settings_tear_feed_hint">Papier, das über die Abrisskante geschoben wird. Erhöhen, wenn die letzte Zeile abgeschnitten wird; verringern, wenn die Zettel zu lang werden.</string>
+    <string name="settings_test_print">Testdruck</string>
+    <string name="settings_printer">Drucker</string>
+    <string name="settings_corpus">Kartendaten</string>
+
+    <string name="printer_not_connected">Druckerdienst nicht verbunden</string>
+    <string name="print_failed">Druck fehlgeschlagen: %1$s</string>
+    <string name="no_card_found">Keine Kreatur mit Manabetrag %1$d</string>
+
+    <string name="scan">Zettel scannen</string>
+    <string name="scan_hint">QR-Code eines gedruckten Zettels in den Rahmen halten</string>
+    <string name="camera_denied">Für das Scannen wird die Kamera-Berechtigung gebraucht</string>
+    <string name="camera_unavailable">Kamera lässt sich nicht öffnen</string>
+    <string name="scan_not_found">Dieser Zettel ist nicht in den Kartendaten auf dem Gerät</string>
+    <string name="scan_not_a_card">Kein Momir-Zettel: %1$s</string>
+
+    <plurals name="tokens_button">
+        <item quantity="one">%1$d Token</item>
+        <item quantity="other">%1$d Tokens</item>
+    </plurals>
+    <string name="tokens_title">%1$s erzeugt</string>
+    <string name="tokens_none">%1$s erzeugt keine Tokens</string>
+    <string name="tokens_print_all">Alle drucken</string>
+
+    <string name="sync_running">Resync: %1$s</string>
+    <string name="sync_done">Resync fertig: %1$d neu, %2$d Artworks</string>
+    <string name="sync_failed">Resync fehlgeschlagen: %1$s</string>
+    <string name="sync_already_running">Resync läuft bereits</string>
+</resources>

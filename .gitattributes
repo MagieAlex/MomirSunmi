@@ -1,0 +1,14 @@
+# Normalise line endings in the repository, and check out what each platform
+# actually needs. Without this, gradlew picks up CRLF on a Windows clone and
+# then refuses to run on Linux and macOS with a baffling "bad interpreter".
+* text=auto eol=lf
+
+*.bat  text eol=crlf
+*.cmd  text eol=crlf
+gradlew text eol=lf
+
+*.png  binary
+*.jar  binary
+*.apk  binary
+*.pack binary
+*.db   binary
