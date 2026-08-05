@@ -64,26 +64,42 @@ rules text. The mode only decides what fills the middle.
 ```
 QR mode                          Artwork mode
 ┌──────────────────────────┐     ┌──────────────────────────┐
-│ (5)  Pinnacle Monk //    │     │ (5)  Monstrosity   ▓▓▓▓  │  ← small QR
-│      Mystic Peak         │     │      of the Lake   ▓▓▓▓  │
-│      3 R R               │     │      4 U           ▓▓▓▓  │
+│ (3)  Blood-Cursed        │     │ (3)  Timmerian     ▓▓▓▓  │  ← small QR
+│      Knight              │     │      Fiends        ▓▓▓▓  │
 ├──────────────────────────┤     ├──────────────────────────┤
-│ Creature — Djinn    2/2  │     │ Legendary — Kraken  4/6  │
+│ Creature — Vampire  3/2  │     │ Creature — Horror   1/1  │
+│ 1 W B · White / Black    │     │ 1 B B · Black            │  ← cost and colour
 ├──────────────────────────┤     ├──────────────────────────┤
 │      ▓▓▓▓▓▓▓▓▓▓▓         │     │                          │
 │      ▓▓ large QR ▓       │     │      dithered artwork    │
 │      ▓▓▓▓▓▓▓▓▓▓▓         │     │                          │
 ├──────────────────────────┤     ├──────────────────────────┤
-│ Prowess (Whenever you    │     │ When Monstrosity of the  │
-│ cast a noncreature…      │     │ Lake enters, you may…    │
+│ As long as you control   │     │ Remove this card from    │
+│ an enchantment…          │     │ your deck before…        │
 └──────────────────────────┘     └──────────────────────────┘
 ```
 
 The mana value badge is an **outlined ring, not a filled disc**. A solid 54-dot
 circle dumps a lot of heat into one spot and bleeds on cheap paper.
 
-The mana cost line under the name is omitted when it would just repeat the badge
-— `{5}` under a badge that already says 5 is noise, while `4 U` is not.
+### The colour line
+
+A thermal slip is monochrome, so nothing on the paper tells you what colour the
+creature is. Usually the mana cost gives it away, but not always — a Devoid
+creature is colourless despite a coloured cost, Stonecoil Serpent costs `{X}`
+and is colourless, and Kobolds of Kher Keep has no mana cost at all and is red.
+Since Momir hands you a *token copy* of the card, and colour decides what can
+target it, the slip spells it out.
+
+Colours are named for one to three of them ("White / Black") and shortened to
+letters for four or five, because "White / Blue / Black / Red / Green" is
+thirty-five characters and anyone holding a five-colour creature can read WUBRG.
+
+That line runs the **full width, under the type line**, rather than under the
+card name. In artwork mode the title column is only about 170 dots wide once the
+badge and the QR have taken their share, and Reaper King's
+`2/W 2/U 2/B 2/R 2/G` does not fit in that at any size worth reading — it used
+to run underneath the QR and get clipped.
 
 ### Why artwork slips still carry a QR
 

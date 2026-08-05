@@ -118,21 +118,29 @@ class SlipRenderer {
         val namePaint = textPaint(34f, bold = true)
         val nameLayout = fitToLines(content.title, namePaint, titleWidth, 2, 20f)
 
-        val kickerPaint = textPaint(20f)
-        val kickerHeight = if (content.kicker.isNotEmpty()) (kickerPaint.fontSpacing + 2).toInt() else 0
-
         val typePaint = textPaint(21f)
         val ptPaint = textPaint(23f, bold = true)
         val ptText = content.powerToughness.orEmpty()
         val ptWidth = if (ptText.isEmpty()) 0 else ptPaint.measureText(ptText).toInt() + 8
         val typeLayout = fitToLines(content.typeLine, typePaint, contentWidth - ptWidth, 2, 15f)
 
+        // Cost and colour sit below the type line, across the full width, rather
+        // than under the name. In artwork mode the title column is only about
+        // 170 dots wide once the badge and the QR have taken their share, and
+        // Reaper King's "2/W 2/U 2/B 2/R 2/G" does not fit in that at any size
+        // worth reading.
+        val sublinePaint = textPaint(19f)
+        val sublineLayout = if (content.subline.isNotEmpty()) {
+            fitToLines(content.subline, sublinePaint, contentWidth, 1, 14f)
+        } else null
+
         val headerHeight = maxOf(
             if (hasBadge) badgeSize else 0,
-            nameLayout.height + kickerHeight,
+            nameLayout.height,
             headerQrSize,
         )
-        val typeHeight = maxOf(typeLayout.height, if (ptText.isEmpty()) 0 else ptPaint.fontSpacing.toInt())
+        val typeHeight = maxOf(typeLayout.height, if (ptText.isEmpty()) 0 else ptPaint.fontSpacing.toInt()) +
+            (sublineLayout?.let { it.height + 3 } ?: 0)
 
         val bodyQr = if (!wantsArt) qrMatrix else null
         val hasBody = wantsArt || bodyQr != null
@@ -185,20 +193,6 @@ class SlipRenderer {
         nameLayout.draw(canvas)
         canvas.restore()
 
-        if (content.kicker.isNotEmpty()) {
-            // Clip to the title column. Reaper King's cost is "2/W 2/U 2/B 2/R 2/G",
-            // which is wide enough to run under the header QR if left unbounded.
-            val kicker = TextUtils.ellipsize(
-                content.kicker, kickerPaint, titleWidth.toFloat(), TextUtils.TruncateAt.END,
-            )
-            canvas.drawText(
-                kicker, 0, kicker.length,
-                titleLeft.toFloat(),
-                (y + nameLayout.height + kickerPaint.textSize).toFloat(),
-                kickerPaint,
-            )
-        }
-
         y += headerHeight + blockGap
         drawRule(canvas, y)
         y += ruleThickness + blockGap
@@ -214,6 +208,13 @@ class SlipRenderer {
                 (y + ptPaint.textSize).toFloat(),
                 ptPaint,
             )
+        }
+
+        if (sublineLayout != null) {
+            canvas.save()
+            canvas.translate(sideMargin.toFloat(), (y + typeLayout.height + 3).toFloat())
+            sublineLayout.draw(canvas)
+            canvas.restore()
         }
         y += typeHeight
 

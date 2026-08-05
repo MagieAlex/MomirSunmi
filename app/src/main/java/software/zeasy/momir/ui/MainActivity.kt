@@ -31,6 +31,7 @@ import software.zeasy.momir.print.SlipRenderer
 import software.zeasy.momir.print.SunmiPrinter
 import software.zeasy.momir.sync.SyncService
 import java.text.NumberFormat
+import java.util.Locale
 
 /**
  * One screen: pick a mana value, hit the button, take the slip.
@@ -49,7 +50,13 @@ class MainActivity : AppCompatActivity() {
     private lateinit var printer: SunmiPrinter
 
     private val renderer = SlipRenderer()
-    private val numberFormat: NumberFormat = NumberFormat.getIntegerInstance()
+
+    /**
+     * Pinned to US rather than the device locale. The app is English-only, and on
+     * a German-configured V2 the default formatter renders 17,497 as "17.497",
+     * which an English reader takes for a decimal.
+     */
+    private val numberFormat: NumberFormat = NumberFormat.getIntegerInstance(Locale.US)
 
     /** The creature currently on the result card, so its tokens stay reachable. */
     private var lastCard: Card? = null
@@ -152,11 +159,13 @@ class MainActivity : AppCompatActivity() {
         binding.manaWheel.setSelectedValue(restore)
         updateCountLabel(binding.manaWheel.selectedValue ?: restore)
 
-        binding.corpusInfo.text = buildString {
-            append(numberFormat.format(repository.cardCount())).append(" creatures")
-            append(" · ").append(numberFormat.format(repository.artCount())).append(" artworks")
-            val tokens = repository.tokenCount()
-            if (tokens > 0) append(" · ").append(numberFormat.format(tokens)).append(" tokens")
+        val cards = numberFormat.format(repository.cardCount())
+        val artworks = numberFormat.format(repository.artCount())
+        val tokens = repository.tokenCount()
+        binding.corpusInfo.text = if (tokens > 0) {
+            getString(R.string.corpus_summary_tokens, cards, artworks, numberFormat.format(tokens))
+        } else {
+            getString(R.string.corpus_summary, cards, artworks)
         }
     }
 
@@ -298,7 +307,7 @@ class MainActivity : AppCompatActivity() {
             }
 
             showResult(card, height)
-            toast("Preview: ${card.name}")
+            toast(getString(R.string.preview_written, card.name))
         }
     }
 
@@ -310,7 +319,7 @@ class MainActivity : AppCompatActivity() {
             card.typeLine.takeIf { it.isNotBlank() },
             card.powerToughness,
             contentDots?.let {
-                String.format("%.0f mm", it / EscPos.DOTS_PER_MM + settings.tearFeedMm)
+                String.format(Locale.US, "%.0f mm", it / EscPos.DOTS_PER_MM + settings.tearFeedMm)
             },
         ).joinToString(" · ")
 
@@ -466,7 +475,7 @@ class MainActivity : AppCompatActivity() {
             val content = SlipContent(
                 title = "Test Slip",
                 badge = "8",
-                kicker = "CALIBRATION",
+                subline = "CALIBRATION",
                 typeLine = "Tear here and measure",
                 powerToughness = null,
                 rulesText = "Tear this off and hold it against a ruler. Adjust \"feed after " +
@@ -477,7 +486,7 @@ class MainActivity : AppCompatActivity() {
             )
             val raster = printSlip(content)
             if (raster != null) {
-                toast("Slip is ${"%.0f".format(raster.heightMm + settings.tearFeedMm)} mm")
+                toast(getString(R.string.slip_length_toast, raster.heightMm + settings.tearFeedMm))
             }
         }
     }

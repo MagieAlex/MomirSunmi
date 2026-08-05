@@ -6,15 +6,20 @@ import software.zeasy.momir.data.Token
 /**
  * What actually goes on a slip, independent of whether it came from a creature
  * card or a token. Both print through the same layout code; the only visible
- * difference is that a creature carries a mana value badge and a token carries
- * a "TOKEN" kicker instead.
+ * difference is that a creature carries a mana value badge and a token says so
+ * in its subline.
  */
 data class SlipContent(
     val title: String,
     /** Mana value, drawn in the ring. Null for tokens, which have no mana value. */
     val badge: String?,
-    /** Small line under the title: mana cost, or the word TOKEN. */
-    val kicker: String,
+    /**
+     * Full-width line under the type line: mana cost and colour, or TOKEN and
+     * colour. Colour is spelled out because a thermal slip is monochrome - there
+     * is nothing on the paper that tells you a Devoid creature is colourless, or
+     * that a card with no mana cost at all is red.
+     */
+    val subline: String,
     val typeLine: String,
     val powerToughness: String?,
     val rulesText: String,
@@ -26,6 +31,31 @@ data class SlipContent(
     val hasArt: Boolean get() = artOffset != null && artLength != null && artHeight != null
 
     companion object {
+
+        private const val WUBRG = "WUBRG"
+        private val COLOR_NAMES = mapOf(
+            'W' to "White", 'U' to "Blue", 'B' to "Black", 'R' to "Red", 'G' to "Green",
+        )
+
+        /**
+         * "GW" -> "White / Green", "" -> "Colorless", "WUBRG" -> "W U B R G".
+         *
+         * Always WUBRG order, never the order the letters happened to arrive in -
+         * that is the order players say a colour pair in.
+         *
+         * Four and five colour cards fall back to letters. "White / Blue / Black
+         * / Red / Green" is thirty-five characters that would push the type line
+         * onto a second row, and any player who has a five-colour creature in
+         * front of them can read WUBRG.
+         */
+        fun colorLabel(symbols: String): String {
+            val ordered = WUBRG.filter { symbols.contains(it) }
+            return when {
+                ordered.isEmpty() -> "Colorless"
+                ordered.length <= 3 -> ordered.map { COLOR_NAMES.getValue(it) }.joinToString(" / ")
+                else -> ordered.toCharArray().joinToString(" ")
+            }
+        }
 
         /**
          * "https://scryfall.com/card/mh1/57/windreaver" -> ".../card/mh1/57"
@@ -48,13 +78,17 @@ data class SlipContent(
 
         fun of(card: Card): SlipContent {
             val badge = card.manaValue.toString()
-            // {5} under a badge that already says 5 is noise. Only generic-plus-
-            // coloured costs actually tell you something the mana value does not.
+            // {5} next to a badge that already says 5 is noise. Only a cost with
+            // colour in it tells you something the mana value does not.
             val cost = card.plainManaCost.takeIf { it != badge }.orEmpty()
+            val subline = listOf(cost, colorLabel(card.colorIdentity))
+                .filter { it.isNotEmpty() }
+                .joinToString(SEPARATOR)
+
             return SlipContent(
                 title = card.name,
                 badge = badge,
-                kicker = cost,
+                subline = subline,
                 typeLine = card.typeLine,
                 powerToughness = card.powerToughness,
                 rulesText = card.oracleText,
@@ -68,7 +102,7 @@ data class SlipContent(
         fun of(token: Token) = SlipContent(
             title = token.name,
             badge = null,
-            kicker = "TOKEN",
+            subline = "TOKEN" + SEPARATOR + colorLabel(token.colors),
             typeLine = token.typeLine,
             powerToughness = token.powerToughness,
             rulesText = token.oracleText,
@@ -77,5 +111,7 @@ data class SlipContent(
             artLength = token.artLength,
             artHeight = token.artHeight,
         )
+
+        private const val SEPARATOR = "  ·  "
     }
 }

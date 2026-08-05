@@ -6,9 +6,12 @@
     <string name="mode_art">Artwork</string>
 
     <string name="print">PRINT</string>
-    <string name="printing">…</string>
 
     <string name="creatures_at_mv">%1$s creatures at mana value %2$d</string>
+    <string name="corpus_summary">%1$s creatures · %2$s artworks</string>
+    <string name="corpus_summary_tokens">%1$s creatures · %2$s artworks · %3$s tokens</string>
+    <string name="preview_written">Preview: %1$s</string>
+    <string name="slip_length_toast">Slip is %1$.0f mm</string>
     <string name="no_corpus_title">No card data on this device</string>
     <string name="no_corpus_body">Build the corpus on a PC and push it over adb:\n\npython momirdeck.py build-db\npython momirdeck.py build-art\npython momirdeck.py push\n\nOr tap Resync to download it here, which is slower.</string>
 
@@ -26,11 +29,9 @@
     <string name="settings_printer">Printer</string>
     <string name="settings_corpus">Card data</string>
 
-    <string name="mm_format">%.0f mm</string>
     <string name="printer_not_connected">Printer service not connected</string>
     <string name="print_failed">Print failed: %1$s</string>
     <string name="no_card_found">No creature at mana value %1$d</string>
-    <string name="slip_length">%1$s · %2$.0f mm</string>
 
     <string name="scan">Scan a slip</string>
     <string name="scan_hint">Hold the QR code on a printed slip inside the frame</string>
