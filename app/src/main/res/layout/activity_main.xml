@@ -93,18 +93,21 @@
       Six chips are about twice the width of a 360 dp screen, so the row scrolls.
       The fading edge is what admits that: a chip dissolving at the screen edge
       reads as more to come, where a row stopping flush reads as all there is.
-      Padding rather than margins, unclipped, so a chip fades under the edge
-      instead of stopping short of it.
+
+      The inset belongs to the row, not to the scroll view. A View draws its
+      fading edge starting at its *padding* edge, so 20 dp of padding on the
+      scroll view put the fade 20 dp inside the screen and left everything
+      outside it at full brightness - a chip ran to the edge at full strength
+      with a dark band bitten out of its middle, which reads as a rendering
+      fault rather than as depth. With the padding moved onto the row it
+      scrolls with the chips, and the fade sits where the paper actually ends.
     -->
     <HorizontalScrollView
         android:id="@+id/categoryScroll"
         android:layout_width="0dp"
         android:layout_height="34dp"
         android:layout_marginTop="12dp"
-        android:clipToPadding="false"
-        android:fadingEdgeLength="20dp"
-        android:paddingStart="20dp"
-        android:paddingEnd="20dp"
+        android:fadingEdgeLength="32dp"
         android:requiresFadingEdge="horizontal"
         android:scrollbars="none"
         app:layout_constraintEnd_toEndOf="parent"
@@ -115,7 +118,9 @@
             android:id="@+id/categoryRow"
             android:layout_width="wrap_content"
             android:layout_height="match_parent"
-            android:orientation="horizontal" />
+            android:orientation="horizontal"
+            android:paddingStart="20dp"
+            android:paddingEnd="20dp" />
     </HorizontalScrollView>
 
     <!-- mana value dial -->

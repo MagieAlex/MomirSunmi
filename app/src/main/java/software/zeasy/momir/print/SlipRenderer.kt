@@ -418,6 +418,20 @@ class SlipRenderer {
      * the artwork, because dropping the rules text one point is barely visible
      * and cropping the picture is - but it stops at 20 px, where thermal bleed
      * starts closing letters.
+     *
+     * And then, on the last rungs, **the picture goes entirely, and after that
+     * the 20 px floor does too**. Text outranks both: a planeswalker whose third
+     * ability is ellipsised is not a planeswalker you can play with, and that is
+     * what the ladder used to hand you - it ran out of rungs at half-height art
+     * and started cutting text while 150 dots of picture sat above it. There is
+     * no rung between half art and no art on purpose: below half, the artwork
+     * can no longer hold the QR plate, so the code moves back into the header
+     * and costs more length than the sliver of picture is worth.
+     *
+     * The 18 px rung is reached by two cards in 30,423 - Urza, Planeswalker and
+     * Ashiok, Wicked Manipulator, both of which carry six abilities. It is the
+     * one place the legibility floor gives way, because the thing it is being
+     * traded against is not a smaller line but a missing one.
      */
     private fun choosePlan(
         budget: Int,
@@ -783,6 +797,12 @@ class SlipRenderer {
             Rung(20f, keepReminders = false, artScale = 0.70f),
             Rung(20f, keepReminders = false, artScale = 0.58f),
             Rung(20f, keepReminders = false, artScale = 0.50f),
+            // No picture at all, rather than an incomplete rules box.
+            Rung(20f, keepReminders = false, artScale = 0f),
+            // And below the legibility floor rather than off the end of the
+            // card. Only Urza and Ashiok ever get here; 18 px is tight on
+            // thermal paper, and an ability that did not print is worse.
+            Rung(18f, keepReminders = false, artScale = 0f),
         )
     }
 }

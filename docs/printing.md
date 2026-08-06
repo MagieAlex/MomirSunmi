@@ -81,6 +81,8 @@ takes the first rung that fits:
 | 4 | 24 px | dropped | 82 % |
 | … | … | … | … |
 | 9 | 20 px | dropped | 50 % |
+| 10 | 20 px | dropped | **none** |
+| 11 | 18 px | dropped | none |
 
 The order is the argument. **Reminder text goes before type shrinks**: it is
 parenthesised text explaining a keyword the players at the table already know,
@@ -95,9 +97,25 @@ not there. The ladder used to bottom out at 17 px with the art at half height,
 on perfectly ordinary cards, because the header was 78 dots more expensive than
 anyone had measured — see below.
 
+**Then the picture goes, and only then does the floor.** The rules text outranks
+both. A planeswalker with six abilities whose last two were ellipsised is not a
+planeswalker you can play with, and that is what the ladder used to hand you: it
+ran out of rungs at half-height art and started cutting text while 150 dots of
+picture sat above it. Rung 10 drops the artwork entirely; rung 11 gives up the
+20 px floor as well.
+
+There is deliberately no rung between half art and no art. Below half height the
+artwork can no longer hold the QR plate, so the code moves back into the header
+and costs more length than the sliver of picture is worth.
+
+Rung 11 is reached by two cards in 30,423 — Urza, Planeswalker and Ashiok,
+Wicked Manipulator, both with six abilities. Nothing in the corpus reaches the
+ellipsis.
+
 If nothing on the ladder fits, the last rung is taken and abilities are laid in
 until the space runs out, with the one that overruns ellipsised. An ability is
-only cut where there is room for at least one line of it.
+only cut where there is room for at least one line of it — no card currently in
+the corpus gets that far.
 
 `Raster` always comes back at exactly the configured length: 568 dots of layout,
 704 dots of paper, 88.0 mm, every time.
