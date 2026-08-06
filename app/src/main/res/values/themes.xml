@@ -14,26 +14,91 @@
         <item name="alertDialogTheme">@style/ThemeOverlay.Momir.Dialog</item>
     </style>
 
+    <!--
+      The old overlay set `android:background` at theme level, which every widget
+      inside the dialog inherits - including the button bar, which came out as
+      black slabs with barely visible labels. Style the window, not the views.
+    -->
     <style name="ThemeOverlay.Momir.Dialog" parent="Theme.AppCompat.Dialog.Alert">
-        <item name="android:background">@color/surface_raised</item>
+        <item name="android:windowBackground">@drawable/bg_dialog</item>
         <item name="android:textColorPrimary">@color/text_primary</item>
         <item name="android:textColorSecondary">@color/text_secondary</item>
-        <item name="colorAccent">@color/accent_soft</item>
+        <item name="colorAccent">@color/accent</item>
+        <item name="android:textColorAlertDialogListItem">@color/text_primary</item>
+        <item name="buttonBarButtonStyle">@style/Widget.Momir.DialogButton</item>
+        <item name="buttonBarPositiveButtonStyle">@style/Widget.Momir.DialogButton</item>
+        <item name="buttonBarNegativeButtonStyle">@style/Widget.Momir.DialogButton</item>
+        <item name="buttonBarNeutralButtonStyle">@style/Widget.Momir.DialogButton</item>
     </style>
 
-    <!-- Explicit empty parent: the dotted name would otherwise imply a Widget.Momir parent. -->
-    <style name="Widget.Momir.Segment" parent="">
-        <item name="android:layout_width">0dp</item>
-        <item name="android:layout_height">match_parent</item>
-        <item name="android:layout_weight">1</item>
-        <item name="android:gravity">center</item>
-        <item name="android:textSize">13sp</item>
+    <!-- The token sheet paints its own frame, so the window must not paint one. -->
+    <style name="Theme.Momir.Sheet" parent="Theme.AppCompat.Dialog">
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowIsFloating">true</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:backgroundDimAmount">0.72</item>
+        <item name="android:textColorPrimary">@color/text_primary</item>
+        <item name="android:textColorSecondary">@color/text_secondary</item>
+        <item name="colorAccent">@color/accent</item>
+    </style>
+
+    <style name="Widget.Momir.DialogButton" parent="Widget.AppCompat.Button.Borderless.Colored">
+        <item name="android:textColor">@color/accent</item>
         <item name="android:textStyle">bold</item>
-        <item name="android:letterSpacing">0.03</item>
+        <item name="android:letterSpacing">0.06</item>
+    </style>
+
+    <!--
+      The settings switch, tinted to the frame gold so it belongs with the seek
+      bars above it. An overlay rather than attributes on the widget: SwitchCompat
+      builds its thumb and track from the theme, not from a tint it is handed.
+    -->
+    <style name="ThemeOverlay.Momir.Switch" parent="">
+        <item name="colorControlActivated">@color/accent</item>
+        <item name="colorSwitchThumbNormal">@color/text_disabled</item>
+        <item name="android:colorForeground">@color/outline</item>
+    </style>
+
+    <!--
+      A category chip. The selected one wears the brass plate a card frame's
+      title bar is struck from; the rest are bare type - no plate, no outline,
+      nothing that asks to be pressed. Explicit empty parent, or the dotted name
+      would imply a Widget.Momir that does not exist.
+    -->
+    <style name="Widget.Momir.Chip" parent="">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">match_parent</item>
+        <item name="android:layout_marginEnd">6dp</item>
+        <item name="android:gravity">center</item>
+        <item name="android:paddingStart">14dp</item>
+        <item name="android:paddingEnd">14dp</item>
+        <item name="android:textSize">12sp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:textAllCaps">true</item>
+        <item name="android:letterSpacing">0.14</item>
         <item name="android:background">@drawable/bg_segment</item>
         <item name="android:textColor">@color/segment_text</item>
         <item name="android:clickable">true</item>
         <item name="android:focusable">true</item>
+    </style>
+
+    <!--
+      Small caps, wide tracking, warm grey. Magic sets its flavour and reminder
+      lines this way, and it is what stops a label from reading as chrome.
+    -->
+    <style name="TextAppearance.Momir.Label" parent="">
+        <item name="android:textSize">11sp</item>
+        <item name="android:textAllCaps">true</item>
+        <item name="android:letterSpacing">0.18</item>
+        <item name="android:textColor">@color/text_secondary</item>
+    </style>
+
+    <!-- Card names on a real card are a bold serif. So are they here. -->
+    <style name="TextAppearance.Momir.CardName" parent="">
+        <item name="android:fontFamily">serif</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:textSize">19sp</item>
+        <item name="android:textColor">@color/text_primary</item>
     </style>
 
 </resources>

@@ -52,6 +52,16 @@ class GlowOverlay @JvmOverloads constructor(
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val borderRect = RectF()
 
+    /**
+     * Both shaders for a multicolour identity, built once per play rather than
+     * per frame. Constructing a `SweepGradient` in [onDraw] also constructs a
+     * native `SkShader` behind it, and at 1500 ms that was ninety of each per
+     * print - on a device with 340 MB free, and in a class whose whole argument
+     * is that it allocates nothing while animating.
+     */
+    private var haloShader: SweepGradient? = null
+    private var bandShader: LinearGradient? = null
+
     private val cornerRadius = dp(2f)
     private val haloLayers = 14
     private val bandHalfHeight = dp(90f)
@@ -70,6 +80,7 @@ class GlowOverlay @JvmOverloads constructor(
         if (identityColors.isEmpty()) return
         colors = identityColors.toIntArray()
         originY = fromY
+        buildShaders()
 
         animator?.cancel()
         animator = ValueAnimator.ofFloat(0f, 1f).apply {
@@ -87,7 +98,31 @@ class GlowOverlay @JvmOverloads constructor(
         animator?.cancel()
         animator = null
         progress = 0f
+        haloShader = null
+        bandShader = null
         invalidate()
+    }
+
+    /**
+     * A single colour paints flat and needs no shader at all; two or more get a
+     * sweep around the perimeter and a ramp across the band.
+     */
+    private fun buildShaders() {
+        if (colors.size < 2 || width == 0 || height == 0) {
+            haloShader = null
+            bandShader = null
+            return
+        }
+        haloShader = SweepGradient(width / 2f, height / 2f, closedRing(colors), null)
+        bandShader = LinearGradient(
+            0f, 0f, width.toFloat(), 0f, colors, null, Shader.TileMode.CLAMP,
+        )
+    }
+
+    override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
+        super.onSizeChanged(w, h, oldw, oldh)
+        // Both shaders are in view coordinates, so a resize invalidates them.
+        if (progress > 0f) buildShaders()
     }
 
     override fun onDetachedFromWindow() {
@@ -144,14 +179,10 @@ class GlowOverlay @JvmOverloads constructor(
         if (intensity <= 0f) return
 
         paint.style = Paint.Style.STROKE
-        paint.shader = if (colors.size == 1) {
-            null
-        } else {
-            // Sweep, so a two- or five-colour identity runs its colours around
-            // the perimeter instead of picking one.
-            SweepGradient(width / 2f, height / 2f, closedRing(colors), null)
-        }
-        if (colors.size == 1) paint.color = colors[0]
+        // Sweep, so a two- or five-colour identity runs its colours around the
+        // perimeter instead of picking one.
+        paint.shader = haloShader
+        if (haloShader == null) paint.color = colors[0]
 
         for (layer in 0 until haloLayers) {
             val t = layer / haloLayers.toFloat()
@@ -177,12 +208,8 @@ class GlowOverlay @JvmOverloads constructor(
 
         val centreY = bandCentreY()
         paint.style = Paint.Style.FILL
-        paint.shader = if (colors.size == 1) {
-            null
-        } else {
-            LinearGradient(0f, 0f, width.toFloat(), 0f, colors, null, Shader.TileMode.CLAMP)
-        }
-        if (colors.size == 1) paint.color = colors[0]
+        paint.shader = bandShader
+        if (bandShader == null) paint.color = colors[0]
 
         // Thin horizontal strips with a bell-shaped alpha profile. Setting alpha
         // on the paint scales the gradient too, so one shader covers all of them.

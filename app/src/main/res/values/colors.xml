@@ -1,16 +1,45 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="background">#0E1116</color>
-    <color name="surface">#171C24</color>
-    <color name="surface_raised">#1F262F</color>
-    <color name="outline">#2C3440</color>
+    <!--
+      Magic is printed on cardboard: warm blacks, aged gold, parchment. The old
+      palette was cool blue-grey, which is what every Android app looks like.
+      Every neutral here is pulled a few degrees warm so a slip coming out of the
+      printer and the screen that rolled it belong to the same object.
+    -->
 
-    <color name="text_primary">#F2F5F9</color>
-    <color name="text_secondary">#96A2B4</color>
-    <color name="text_disabled">#5B6675</color>
+    <color name="background">#08090C</color>
+    <!-- Centre of the screen vignette: barely lighter, enough to give a middle. -->
+    <color name="background_centre">#12141A</color>
+    <color name="surface">#12141A</color>
+    <color name="surface_raised">#1A1D25</color>
+    <color name="surface_sunken">#0B0D11</color>
+    <color name="outline">#2A2E39</color>
 
-    <color name="accent">#3D7BFF</color>
-    <color name="accent_soft">#7FB2FF</color>
-    <color name="danger">#FF6B5E</color>
+    <color name="text_primary">#F1EBDD</color>
+    <color name="text_secondary">#9A9384</color>
+    <color name="text_disabled">#5E5A52</color>
+
+    <!--
+      The card frame gold. Not yellow - Magic's rare frame is a desaturated brass
+      that reads as metal rather than as a highlighter, and the difference is the
+      whole reason the frame looks expensive.
+    -->
+    <color name="accent">#C9A85C</color>
+    <color name="accent_soft">#EBD9A6</color>
+    <color name="accent_dim">#6E5C31</color>
+    <color name="accent_ghost">#221C10</color>
+
+    <color name="danger">#D9584B</color>
     <color name="success">#4ADE80</color>
+
+    <!--
+      The five colours, tuned for emitted light rather than reflected ink. Kept in
+      sync with ManaColors, which needs them as ints at draw time.
+    -->
+    <color name="mana_white">#F6E9B4</color>
+    <color name="mana_blue">#3B9EE5</color>
+    <color name="mana_black">#9B6BD4</color>
+    <color name="mana_red">#EF4A3C</color>
+    <color name="mana_green">#3FBF6A</color>
+    <color name="mana_colorless">#B9C2CF</color>
 </resources>

@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  One token in the sheet. Reads top-to-bottom the way a player says it out loud:
+  colour stripe, power/toughness, name, type line.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginBottom="8dp"
+    android:background="@drawable/bg_token_row"
+    android:baselineAligned="false"
+    android:gravity="center_vertical"
+    android:minHeight="58dp"
+    android:orientation="horizontal"
+    android:paddingStart="10dp"
+    android:paddingEnd="14dp"
+    android:paddingTop="9dp"
+    android:paddingBottom="9dp">
+
+    <View
+        android:id="@+id/tokenStripe"
+        android:layout_width="4dp"
+        android:layout_height="match_parent"
+        android:layout_marginEnd="12dp"
+        android:minHeight="38dp" />
+
+    <TextView
+        android:id="@+id/tokenPt"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginEnd="12dp"
+        android:fontFamily="serif"
+        android:minWidth="34dp"
+        android:gravity="center"
+        android:textColor="@color/accent_soft"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        tools:text="2/2" />
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/tokenName"
+            style="@style/TextAppearance.Momir.CardName"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:textSize="16sp"
+            tools:text="Zombie" />
+
+        <TextView
+            android:id="@+id/tokenType"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:textColor="@color/text_secondary"
+            android:textSize="12sp"
+            tools:text="Token Creature — Zombie · Black" />
+    </LinearLayout>
+
+    <!-- Only the chosen row shows a tick, so the choice is never ambiguous. -->
+    <TextView
+        android:id="@+id/tokenCheck"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="8dp"
+        android:text="@string/tokens_selected_mark"
+        android:textColor="@color/accent"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        android:visibility="invisible" />
+
+</LinearLayout>

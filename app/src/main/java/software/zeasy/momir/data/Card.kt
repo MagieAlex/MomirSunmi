@@ -1,7 +1,7 @@
 package software.zeasy.momir.data
 
 /**
- * One Momir-legal creature, exactly as the builder wrote it into momir.db.
+ * One Momir-legal card, exactly as the builder wrote it into momir.db.
  *
  * [artOffset]/[artLength]/[artHeight] point into art.pack. They are null while
  * artwork for this card has not been fetched yet, which is the normal state for
@@ -16,6 +16,11 @@ data class Card(
     val oracleText: String,
     val power: String?,
     val toughness: String?,
+    /**
+     * Starting loyalty, for planeswalkers only. A planeswalker slip without it
+     * cannot be played from - you would not know what the thing enters with.
+     */
+    val loyalty: String?,
     /** WUBRG letters, empty for colourless. Drives the colour of the print animation. */
     val colorIdentity: String,
     val scryfallUri: String,

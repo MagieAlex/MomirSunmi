@@ -9,7 +9,7 @@ Everything runs offline on a **Sunmi V2** POS terminal. All 17,497 creatures
 Magic has ever printed on paper live on the device, artwork included.
 
 <p align="center">
-  <img src="docs/images/app.png" width="235" alt="The app: mana value dial and print button">
+  <img src="docs/images/app.png" width="235" alt="The app: a dial of mana symbols and the print seal">
   &nbsp;
   <img src="docs/images/glow.png" width="235" alt="The print animation, glowing in the card's colour identity">
   &nbsp;
@@ -48,10 +48,15 @@ card so you have something to physically put on the battlefield.
   63 × 88 mm, and every slip prints to exactly 88 mm — so a stack of them
   behaves like a stack of cards rather than a pile of receipts. The layout
   re-flows to fill or fit, whichever it needs.
+- **It looks like Magic.** The dial spins actual mana symbols, the print button
+  is a brass seal with the five colours set into its rim as gems — WUBRG
+  clockwise, the colour wheel — and everything that names a card is set in a
+  serif on card-frame gold.
 - **It looks like something happened.** Pressing the button lights it up, the
   screen edge takes on the card's colour identity, and a band of that colour
   sweeps up and out of the top of the screen — which is where the V2's paper
-  actually comes out. Multicolour cards run their colours around the border.
+  actually comes out. Multicolour cards run their colours around the border, and
+  the button keeps the creature's colours until the result clears.
 - **Resync.** With WiFi, the device pulls new cards straight from Scryfall and
   dithers their artwork itself. Without WiFi, nothing changes — everything works
   offline.
@@ -103,9 +108,17 @@ where it left off.
 | Spin the dial | Pick a mana value. Only values that actually have creatures are offered — Magic has never printed one at mana value 14. |
 | **PRINT** | Rolls a random creature at that mana value and prints it. |
 | Long-press **PRINT** | Renders the slip to `preview.png` in the app's files directory *without* printing. For checking a layout without burning paper. |
-| Tap "*n* tokens" | Lists what the creature creates; print one or all of them. |
-| Scan button | Reads the QR off a slip and offers that card's tokens. |
+| Tap "*n* tokens" | Opens the token sheet: pick one, set a quantity, print — or print one of each. |
+| Scan button | Reads the QR off a slip and opens that card's token sheet, stamped as a scan. |
 | Settings → Test print | Prints a calibration slip for dialling in the tear-feed distance. |
+
+<p align="center">
+  <img src="docs/images/tokens.png" width="235" alt="The token sheet: what the creature creates, a quantity, and a print button">
+</p>
+
+<p align="center">
+  <sub>The token sheet, however it was opened — it says which of the two it was.</sub>
+</p>
 
 ### First-run calibration
 
@@ -135,7 +148,7 @@ app/                    Android app (Kotlin, minSdk 25, Views — no Compose)
   src/main/java/…/data      SQLite + art pack readers
   src/main/java/…/print     Slip layout, dithering, ESC/POS, printer binding
   src/main/java/…/sync      On-device Scryfall resync
-  src/main/java/…/ui        The dial, the button, the scanner
+  src/main/java/…/ui        The dial, the button, the token sheet, the scanner
 tools/momirdeck/        The PC-side corpus builder
 tools/make_icon.py      Regenerates the launcher icon
 docs/                   The documents above

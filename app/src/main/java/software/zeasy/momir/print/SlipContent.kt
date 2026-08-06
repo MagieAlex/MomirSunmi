@@ -22,6 +22,12 @@ data class SlipContent(
     val subline: String,
     val typeLine: String,
     val powerToughness: String?,
+    /**
+     * Starting loyalty. Printed in the same corner power/toughness takes, since
+     * no card ever has both, but under its own label - a planeswalker slip that
+     * said "4" where a creature says "3/4" would read as half a P/T.
+     */
+    val loyalty: String?,
     val rulesText: String,
     val linkUri: String,
     val artOffset: Long?,
@@ -91,6 +97,7 @@ data class SlipContent(
                 subline = subline,
                 typeLine = card.typeLine,
                 powerToughness = card.powerToughness,
+                loyalty = card.loyalty,
                 rulesText = card.oracleText,
                 linkUri = shortenScryfallUri(card.scryfallUri),
                 artOffset = card.artOffset,
@@ -105,6 +112,7 @@ data class SlipContent(
             subline = "TOKEN" + SEPARATOR + colorLabel(token.colors),
             typeLine = token.typeLine,
             powerToughness = token.powerToughness,
+            loyalty = null,
             rulesText = token.oracleText,
             linkUri = shortenScryfallUri(token.scryfallUri),
             artOffset = token.artOffset,

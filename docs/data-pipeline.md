@@ -1,14 +1,14 @@
 # Data pipeline
 
-How Scryfall's bulk export becomes 249 MB of offline card data, and — more
-importantly — exactly which cards count as Momir-legal and why.
+How Scryfall's bulk export becomes the offline card corpus, and — more
+importantly — exactly which cards get in and why.
 
 ## The three build steps
 
 ```bash
-python momirdeck.py build-db       # creatures        ~2 s
-python momirdeck.py build-tokens   # what they make   ~1 min
-python momirdeck.py build-art      # artwork          ~30 min, resumable
+python momirdeck.py build-db       # every rollable card   ~4 s
+python momirdeck.py build-tokens   # what creatures make   ~1 min
+python momirdeck.py build-art      # artwork               ~50 min, resumable
 python momirdeck.py stats          # what you ended up with
 python momirdeck.py push           # adb push to the device
 ```
@@ -17,9 +17,14 @@ Output lands in `tools/momirdeck/out/`:
 
 | File | Size | Contents |
 |---|---|---|
-| `momir.db` | 11 MB | 17,497 creatures, 532 tokens, 2,060 creature→token links |
-| | | (16,763 of the creatures carry a colour identity, 734 are colourless) |
-| `art.pack` | 238 MB | 18,029 pre-dithered 1-bit artworks |
+| `momir.db` | ~19 MB | ~30,300 cards, 532 tokens, 2,060 creature→token links |
+| `art.pack` | ~410 MB | ~30,800 pre-dithered 1-bit artworks |
+
+Those are **projections**, not measurements — see [How big it
+gets](#how-big-it-gets). The last corpus actually built, before the roll widened
+past creatures, was 11 MB of `momir.db` (17,497 creatures, of which 16,763 carry
+a colour identity and 734 are colourless) and 238 MB of `art.pack` holding
+18,029 artworks.
 
 ## Streaming, not loading
 
@@ -35,9 +40,63 @@ keep a fallback path for the legacy single-array form.)
 
 ## Which cards count
 
-The intent is Scryfall's `t:creature -is:alchemy -is:funny -is:digital`. Getting
-there took two corrections that are worth writing down, because the obvious
-implementation is wrong in both directions.
+Two independent questions: **is this a real card at all**, and **is it a type you
+can roll**. The first has not changed since the first release. The second widened
+when the app stopped being creatures-only, and nothing about the first was
+loosened to make room for it.
+
+### The seven rollable types
+
+`cards.type_mask` is a bitmask of the front face's card types:
+
+| Type | Bit |
+|---|---:|
+| Creature | 1 |
+| Artifact | 2 |
+| Enchantment | 4 |
+| Planeswalker | 8 |
+| Land | 16 |
+| Battle | 32 |
+| Instant | 64 |
+| Sorcery | 128 |
+
+The app rolls with `WHERE type_mask & :mask != 0`, so one query covers any
+combination of types, and a card carries *every* bit its type line names: an
+artifact creature is `CREATURE|ARTIFACT` = 3 and answers to a roll for either,
+Dryad Arbor is `CREATURE|LAND` = 17.
+
+These values are a contract between the builder and the app. Never renumber
+them — a corpus built last month is still sitting on somebody's device.
+
+The mask comes from the type line up to the em dash, which makes supertypes and
+subtypes irrelevant: `Legendary Enchantment Creature — God` is
+`CREATURE|ENCHANTMENT`. That cut also does the right thing by the layouts which
+print both halves on the front. `Creature — Faerie Rogue // Instant — Adventure`
+stops at the first em dash, so Brazen Borrower stays the creature card it is
+rather than turning up when somebody rolls an instant; `Instant // Sorcery` has
+no em dash at all and rightly keeps both bits.
+
+### Lands are the one type left out
+
+The LAND bit exists and is set wherever it belongs, but a card whose *only*
+type is land never enters the corpus. Being handed a random Wastes is not a game
+anybody wants to play, and the 1,100-odd plain lands would cost some 15 MB of
+`art.pack` and two minutes of Scryfall's bandwidth for slips nobody would ever
+use. Land creatures come along anyway, on their creature bit, and keep their
+LAND bit for the app to display.
+
+Instants and sorceries *are* in, permanent or not. You are rolling a card and
+printing it; whether it stays on the battlefield afterwards is not the pipeline's
+business.
+
+### Planeswalkers carry their starting loyalty
+
+`cards.loyalty` is Scryfall's `loyalty`, `NULL` for everything that is not a
+planeswalker. A planeswalker slip without the number in the bottom corner is not
+something you can play with.
+
+It is read off the front face only, so Jace, Vryn's Prodigy prints as the
+creature he is instead of borrowing the 5 from his flip side.
 
 ### Paper-ness comes from legality, not the `digital` flag
 
@@ -86,8 +145,8 @@ Westvale Abbey // Ormendahl, Profane Prince   [transform]  Land // Creature
 Azusa's Many Journeys // Likeness of Seeker   [transform]  Saga // Creature
 ```
 
-Westvale Abbey is a land. Momir Vig copies creature *cards*, and a card's type
-is its front face. So the filter uses the front face only:
+Westvale Abbey is a land. You roll a *card*, and a card's type is its front
+face. So the filter uses the front face only, and so does the type mask:
 
 ```python
 BOTH_HALVES_ON_FRONT = {"split", "adventure", "flip"}   # both halves are printed on the front
@@ -102,6 +161,9 @@ This is a **deliberate divergence** from Scryfall's count, worth exactly 78
 cards.
 
 ### Verifying it
+
+Measured while the corpus was creatures only. The quality rules have not moved
+since, so it still holds — it is just no longer the whole corpus.
 
 The corrected filter's per-mana-value counts match Scryfall's search API exactly
 at the top end, where the numbers are small enough to check by hand:
@@ -130,7 +192,8 @@ EXCLUDED_LAYOUTS   = {token, double_faced_token, emblem, art_series, vanguard,
 EXCLUDED_SET_TYPES = {funny, memorabilia, token, minigame, alchemy}
 ```
 
-Plus names starting `A-` (Alchemy rebalances) and type lines containing `Token`.
+Plus names starting `A-` (Alchemy rebalances), type lines containing `Token`, and
+cards whose only type is land.
 
 > **If you change any of this**, change it in *both* `tools/momirdeck/momirdeck.py`
 > and `app/src/main/java/software/zeasy/momir/sync/ScryfallSync.kt`. A resync
@@ -143,8 +206,25 @@ new column will not appear in a corpus somebody built last month. Both the
 builder and the app therefore apply added columns by hand — the builder from a
 `MIGRATIONS` list, the app from `addColumnIfMissing` in `CardRepository`.
 
-So far there is one: `cards.color_identity`, added for the print animation. An
-older corpus opens fine and simply animates colourless until it is rebuilt.
+Three so far:
+
+| Column | Added for |
+|---|---|
+| `cards.color_identity` | the print animation |
+| `cards.type_mask` | rolling something other than a creature |
+| `cards.loyalty` | planeswalker slips |
+
+An older corpus opens fine. It simply animates colourless until it is rebuilt.
+
+`type_mask` needs more than a default, though: left at 0 it would match no roll
+at all, and the app would answer every press with nothing. So the builder
+backfills it in the same breath as adding it, deriving each row's mask from the
+`type_line` already stored. `ix_cards_type_mv` is created after the migration
+runs, for the obvious reason that the column does not exist before it.
+
+A backfilled corpus is therefore still perfectly usable — as the creature-only
+corpus it always was. Rolling an enchantment finds nothing until the next
+`build-db`, which is the honest answer.
 
 ## Tokens
 
@@ -152,13 +232,23 @@ Scryfall models "what does this card create" as `all_parts` — a list of relate
 objects, of which the ones with `component == "token"` are what the card puts
 onto the battlefield.
 
-Across all 17,497 creatures:
+`build-tokens` looks at every card the corpus admits. It used to look at
+creatures only, which was right while they were all the app could roll — but a
+planeswalker whose entire job is making Soldiers is the most ordinary
+planeswalker there is, and half the enchantments worth rolling make something
+too. The token sheet is keyed on oracle id and never cared what type the card
+was, so widening this costs one condition and a few hundred extra rows.
+
+Measured while the corpus was still creatures only:
 
 ```
 2,060 token references from 1,976 creatures (11.3 %)
   979 distinct token printings referenced
   532 distinct tokens after collapsing to Oracle identity
 ```
+
+Expect both the reference count and the distinct-token count to rise on the next
+full build — planeswalkers alone are a few hundred references.
 
 The catch: `all_parts` references tokens by **printing id**, not Oracle id, so
 it cannot be joined against `oracle_cards` directly — that file holds a
@@ -169,9 +259,9 @@ Rather than stream the 74 MB all-printings export just to build an id map,
 whole game) and resolves them through `/cards/collection` in batches of 75.
 Thirteen requests.
 
-Then printing-level edges collapse to Oracle-level ones, so two creatures
-pointing at two different printings of the same 2/2 black Zombie end up sharing
-one token row.
+Then printing-level edges collapse to Oracle-level ones, so two cards pointing
+at two different printings of the same 2/2 black Zombie end up sharing one token
+row.
 
 ## Artwork
 
@@ -182,8 +272,12 @@ one token row.
 It is resumable by construction: the pack is append-only and offsets are
 committed to the database every 250 images. If it dies, run it again.
 
+Non-creature cards need nothing special here — every card object carries an
+`art_crop`, and `build-art` works off "has no artwork yet" rather than off a type.
+
 Rate limiting is a global 10 requests/second, which is what Scryfall asks for.
-17,497 images take about 29 minutes. Please do not raise it.
+17,497 images took about 29 minutes; the widened corpus is roughly 30,800 and
+should take a little under an hour from cold. Please do not raise it.
 
 ## The art pack format
 
@@ -200,7 +294,45 @@ byte-for-byte what `GS v 0` wants, so printing artwork involves no decoding and
 no bitmap allocation.
 
 `build-db` prunes rows that no longer qualify. Their artwork stays in the pack as
-dead space — cheaper than rewriting a 238 MB file for a few hundred rows.
+dead space — cheaper than rewriting a 400 MB file for a few hundred rows.
+
+## How big it gets
+
+Widening the roll past creatures roughly doubles both files, so it is worth
+knowing what the device is in for. The V2 has about 1.4 GB free.
+
+Card counts are from Scryfall's search API (`unique=cards`, `legal:vintage`),
+scaled by the 0.55 % the front-face rule costs us against their count. They are
+**estimates**; `build-db` prints the real breakdown when you run it.
+
+| | Creatures only (measured) | All seven types (estimated) |
+|---|---:|---:|
+| Cards | 17,497 | ~30,300 |
+| `momir.db` | 11 MB | ~19 MB |
+| Artworks in `art.pack` | 18,029 | ~30,800 |
+| `art.pack` | 238 MB | ~410 MB |
+| On the device | 249 MB | ~430 MB |
+
+Per type, counting a card once for every bit it carries:
+
+| Type | Estimated rows |
+|---|---:|
+| Creature | ~17,500 |
+| Instant | ~3,690 |
+| Enchantment | ~3,590 |
+| Artifact | ~3,510 |
+| Sorcery | ~3,480 |
+| Planeswalker | ~290 |
+| Land | a few dozen |
+| Battle | 36 |
+
+The overlaps are large — some 1,230 artifact creatures and 310 enchantment
+creatures — which is why those columns add up to more than the corpus.
+
+The extra ~12,800 cards are ~13.5 KB of dithered artwork each, so the pack grows
+by about 170 MB and the download by about twenty minutes. Both are one-offs: the
+pack is append-only, so an existing `art.pack` keeps everything it already has
+and only the new cards are fetched.
 
 ## On-device resync
 
@@ -211,6 +343,10 @@ The Resync button does the same work over WiFi:
 2. Stream the Oracle JSONL, filter, insert what is new.
 3. Fetch, dither and append artwork for anything missing, at 10 requests/second.
 
-A set release adds a few hundred creatures, so in practice this is a couple of
+A set release adds a few hundred cards, so in practice this is a couple of
 minutes. Cards are never deleted on-device — pruning only happens in the PC
 builder, where it is easy to verify.
+
+The resync filter has to admit the same types and derive the same mask as the
+builder, or a resynced card will not answer the roll that the same card would
+answer if it had come over adb.

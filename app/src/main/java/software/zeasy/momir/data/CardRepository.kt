@@ -82,6 +82,46 @@ class CardRepository(private val context: Context) {
         // them applied by hand. The value stays empty until the next build or
         // resync, which just means a colourless print animation.
         addColumnIfMissing("cards", "color_identity", "TEXT NOT NULL DEFAULT ''")
+        addColumnIfMissing("cards", "type_mask", "INTEGER NOT NULL DEFAULT 0")
+        addColumnIfMissing("cards", "loyalty", "TEXT")
+        // After the column, never before it: on a corpus that predates type_mask
+        // the index would name a column that is not there yet and the statement
+        // would fail, leaving every later query without it.
+        database.execSQL("CREATE INDEX IF NOT EXISTS ix_cards_type_mv ON cards(type_mask, mv)")
+        backfillTypeMask()
+    }
+
+    /**
+     * Gives a pre-category corpus its type bits back, read off the type line it
+     * already stores.
+     *
+     * Such a corpus holds creatures and nothing else, so afterwards Creatures
+     * and Permanents are populated and the other categories are empty - which is
+     * the honest answer until the corpus is rebuilt.
+     *
+     * One statement, one scan. Doing it row by row would be 17,000 updates on
+     * eMMC, and doing it per distinct type line would be a scan per type line.
+     */
+    private fun backfillTypeMask() {
+        val database = db ?: return
+        if (scalar("SELECT COUNT(*) FROM cards WHERE type_mask = 0") == 0) return
+
+        // Everything before the dash: the types, without the subtypes and
+        // without the far side of a "//". Mirrors CardTypes.maskOf.
+        val dash = CardTypes.SUBTYPE_DASH
+        val cut = "CASE WHEN instr(type_line, '$dash') > 0 " +
+            "THEN instr(type_line, '$dash') - 1 ELSE length(type_line) END"
+        val head = "substr(type_line, 1, $cut)"
+        val bits = CardTypes.KEYWORDS.joinToString(" + ") { (word, bit) ->
+            "(CASE WHEN $head LIKE '%$word%' THEN $bit ELSE 0 END)"
+        }
+
+        try {
+            database.execSQL("UPDATE cards SET type_mask = $bits WHERE type_mask = 0")
+            Log.i(TAG, "Migrated: backfilled cards.type_mask")
+        } catch (e: SQLiteException) {
+            Log.e(TAG, "Cannot backfill type_mask", e)
+        }
     }
 
     private fun addColumnIfMissing(table: String, column: String, declaration: String) {
@@ -101,9 +141,22 @@ class CardRepository(private val context: Context) {
 
     fun cardCount(): Int = scalar("SELECT COUNT(*) FROM cards")
 
+    fun cardCount(category: CardCategory): Int =
+        scalar("SELECT COUNT(*) FROM cards WHERE ${matching(category)}")
+
     fun tokenCount(): Int = scalar("SELECT COUNT(*) FROM tokens")
 
     fun artCount(): Int = scalar("SELECT COUNT(*) FROM cards WHERE art_off IS NOT NULL")
+
+    fun artCount(category: CardCategory): Int =
+        scalar("SELECT COUNT(*) FROM cards WHERE art_off IS NOT NULL AND ${matching(category)}")
+
+    /**
+     * A card belongs to a category if it carries any of its bits, so an artifact
+     * creature answers to both. Interpolated rather than bound because the mask
+     * is an Int off an enum - there is no string here to inject.
+     */
+    private fun matching(category: CardCategory) = "type_mask & ${category.mask} != 0"
 
     fun meta(key: String): String? {
         val database = db ?: return null
@@ -117,27 +170,29 @@ class CardRepository(private val context: Context) {
     }
 
     /**
-     * Every mana value that actually has creatures, with its count.
+     * Every mana value this category actually has, with its count.
      *
      * Momir's X can be anything, but Magic has never printed a creature at MV 14
-     * or above 16, so the wheel only ever offers values that can produce a token.
+     * or above 16, a planeswalker below 2, or a sorcery anywhere near the top of
+     * the range, so the wheel only ever offers values that can produce a card.
      */
-    fun manaValueCounts(): List<ManaValueBucket> {
+    fun manaValueCounts(category: CardCategory): List<ManaValueBucket> {
         val database = db ?: return emptyList()
         val out = ArrayList<ManaValueBucket>(17)
         database.rawQuery(
-            "SELECT mv, COUNT(*) FROM cards GROUP BY mv ORDER BY mv", null,
+            "SELECT mv, COUNT(*) FROM cards WHERE ${matching(category)} GROUP BY mv ORDER BY mv",
+            null,
         ).use { c ->
             while (c.moveToNext()) out.add(ManaValueBucket(c.getInt(0), c.getInt(1)))
         }
         return out
     }
 
-    /** The Momir Vig activation itself: a uniformly random creature at this mana value. */
-    fun randomCard(manaValue: Int): Card? {
+    /** The Momir Vig activation itself: a uniformly random card at this mana value. */
+    fun randomCard(manaValue: Int, category: CardCategory): Card? {
         val database = db ?: return null
         database.rawQuery(
-            "$SELECT_COLUMNS WHERE mv = ? ORDER BY RANDOM() LIMIT 1",
+            "$SELECT_COLUMNS WHERE mv = ? AND ${matching(category)} ORDER BY RANDOM() LIMIT 1",
             arrayOf(manaValue.toString()),
         ).use { c ->
             return if (c.moveToFirst()) c.toCard() else null
@@ -190,7 +245,11 @@ class CardRepository(private val context: Context) {
         }
     }
 
-    /** The tokens a given creature can put onto the battlefield. */
+    /**
+     * The tokens a given card can put onto the battlefield. Empty for the great
+     * majority of them, and for everything that is not a creature - the builder
+     * only links what Scryfall's `all_parts` says makes a token.
+     */
     fun tokensFor(cardOracleId: String): List<Token> {
         val database = db ?: return emptyList()
         val out = ArrayList<Token>(2)
@@ -250,21 +309,24 @@ class CardRepository(private val context: Context) {
         // Never touch art_* here. A refresh of oracle text must not orphan artwork
         // that is already sitting in the pack.
         val updated = database.compileStatement(
-            """UPDATE cards SET name=?, mana_cost=?, mv=?, type_line=?, oracle_text=?,
-                   power=?, toughness=?, color_identity=?, scryfall_uri=?, art_uri=?
+            """UPDATE cards SET name=?, mana_cost=?, mv=?, type_line=?, type_mask=?,
+                   oracle_text=?, power=?, toughness=?, loyalty=?, color_identity=?,
+                   scryfall_uri=?, art_uri=?
                WHERE oracle_id=?"""
         ).use { stmt ->
             stmt.bindString(1, card.name)
             stmt.bindString(2, card.manaCost)
             stmt.bindLong(3, card.manaValue.toLong())
             stmt.bindString(4, card.typeLine)
-            stmt.bindString(5, card.oracleText)
-            card.power?.let { stmt.bindString(6, it) } ?: stmt.bindNull(6)
-            card.toughness?.let { stmt.bindString(7, it) } ?: stmt.bindNull(7)
-            stmt.bindString(8, card.colorIdentity)
-            stmt.bindString(9, card.scryfallUri)
-            stmt.bindString(10, artUri)
-            stmt.bindString(11, card.oracleId)
+            stmt.bindLong(5, CardTypes.maskOf(card.typeLine).toLong())
+            stmt.bindString(6, card.oracleText)
+            card.power?.let { stmt.bindString(7, it) } ?: stmt.bindNull(7)
+            card.toughness?.let { stmt.bindString(8, it) } ?: stmt.bindNull(8)
+            card.loyalty?.let { stmt.bindString(9, it) } ?: stmt.bindNull(9)
+            stmt.bindString(10, card.colorIdentity)
+            stmt.bindString(11, card.scryfallUri)
+            stmt.bindString(12, artUri)
+            stmt.bindString(13, card.oracleId)
             stmt.executeUpdateDelete()
         }
         return updated > 0
@@ -272,13 +334,13 @@ class CardRepository(private val context: Context) {
 
     fun insert(card: Card, artUri: String) {
         db?.execSQL(
-            """INSERT OR IGNORE INTO cards(oracle_id, name, mana_cost, mv, type_line,
-                   oracle_text, power, toughness, color_identity, scryfall_uri, art_uri)
-               VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
+            """INSERT OR IGNORE INTO cards(oracle_id, name, mana_cost, mv, type_line, type_mask,
+                   oracle_text, power, toughness, loyalty, color_identity, scryfall_uri, art_uri)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             arrayOf(
                 card.oracleId, card.name, card.manaCost, card.manaValue, card.typeLine,
-                card.oracleText, card.power, card.toughness, card.colorIdentity,
-                card.scryfallUri, artUri,
+                CardTypes.maskOf(card.typeLine), card.oracleText, card.power, card.toughness,
+                card.loyalty, card.colorIdentity, card.scryfallUri, artUri,
             ),
         )
     }
@@ -303,11 +365,12 @@ class CardRepository(private val context: Context) {
         oracleText = getString(5),
         power = if (isNull(6)) null else getString(6),
         toughness = if (isNull(7)) null else getString(7),
-        colorIdentity = if (isNull(8)) "" else getString(8),
-        scryfallUri = getString(9),
-        artOffset = if (isNull(10)) null else getLong(10),
-        artLength = if (isNull(11)) null else getInt(11),
-        artHeight = if (isNull(12)) null else getInt(12),
+        loyalty = if (isNull(8)) null else getString(8),
+        colorIdentity = if (isNull(9)) "" else getString(9),
+        scryfallUri = getString(10),
+        artOffset = if (isNull(11)) null else getLong(11),
+        artLength = if (isNull(12)) null else getInt(12),
+        artHeight = if (isNull(13)) null else getInt(13),
     )
 
     companion object {
@@ -317,7 +380,8 @@ class CardRepository(private val context: Context) {
 
         private const val SELECT_COLUMNS =
             "SELECT oracle_id, name, mana_cost, mv, type_line, oracle_text, power, " +
-                "toughness, color_identity, scryfall_uri, art_off, art_len, art_h FROM cards"
+                "toughness, loyalty, color_identity, scryfall_uri, art_off, art_len, art_h " +
+                "FROM cards"
     }
 }
 

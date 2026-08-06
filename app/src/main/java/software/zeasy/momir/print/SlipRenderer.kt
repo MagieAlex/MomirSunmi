@@ -120,9 +120,20 @@ class SlipRenderer {
 
         val typePaint = textPaint(21f)
         val ptPaint = textPaint(23f, bold = true)
+        val loyaltyPaint = textPaint(14f).apply { letterSpacing = 0.14f }
+
+        // A card has power/toughness or starting loyalty, never both, so they
+        // share the corner. The word is what stops a loyalty of 4 being read as
+        // the back half of a P/T.
         val ptText = content.powerToughness.orEmpty()
-        val ptWidth = if (ptText.isEmpty()) 0 else ptPaint.measureText(ptText).toInt() + 8
-        val typeLayout = fitToLines(content.typeLine, typePaint, contentWidth - ptWidth, 2, 15f)
+        val loyaltyText = content.loyalty.orEmpty()
+        val cornerWidth = when {
+            ptText.isNotEmpty() -> ptPaint.measureText(ptText).toInt() + 8
+            loyaltyText.isNotEmpty() -> (loyaltyPaint.measureText(LOYALTY_LABEL) +
+                LOYALTY_GAP + ptPaint.measureText(loyaltyText)).toInt() + 8
+            else -> 0
+        }
+        val typeLayout = fitToLines(content.typeLine, typePaint, contentWidth - cornerWidth, 2, 15f)
 
         // Cost and colour sit below the type line, across the full width, rather
         // than under the name. In artwork mode the title column is only about
@@ -139,7 +150,7 @@ class SlipRenderer {
             nameLayout.height,
             headerQrSize,
         )
-        val typeHeight = maxOf(typeLayout.height, if (ptText.isEmpty()) 0 else ptPaint.fontSpacing.toInt()) +
+        val typeHeight = maxOf(typeLayout.height, if (cornerWidth == 0) 0 else ptPaint.fontSpacing.toInt()) +
             (sublineLayout?.let { it.height + 3 } ?: 0)
 
         val bodyQr = if (!wantsArt) qrMatrix else null
@@ -211,12 +222,22 @@ class SlipRenderer {
         canvas.translate(sideMargin.toFloat(), y.toFloat())
         typeLayout.draw(canvas)
         canvas.restore()
+        val cornerBaseline = (y + ptPaint.textSize).toFloat()
         if (ptText.isNotEmpty()) {
             canvas.drawText(
                 ptText,
                 width - sideMargin - ptPaint.measureText(ptText),
-                (y + ptPaint.textSize).toFloat(),
+                cornerBaseline,
                 ptPaint,
+            )
+        } else if (loyaltyText.isNotEmpty()) {
+            val valueLeft = width - sideMargin - ptPaint.measureText(loyaltyText)
+            canvas.drawText(loyaltyText, valueLeft, cornerBaseline, ptPaint)
+            canvas.drawText(
+                LOYALTY_LABEL,
+                valueLeft - LOYALTY_GAP - loyaltyPaint.measureText(LOYALTY_LABEL),
+                cornerBaseline,
+                loyaltyPaint,
             )
         }
 
@@ -515,6 +536,10 @@ class SlipRenderer {
     companion object {
         /** Above the midpoint on purpose - see [toRaster]. */
         private const val BURN_THRESHOLD = 170
+
+        /** Small caps beside the number, in the corner power/toughness would take. */
+        private const val LOYALTY_LABEL = "LOYALTY"
+        private const val LOYALTY_GAP = 6f
 
         private const val QR_QUIET_MODULES = 2
         private const val QR_MIN_MODULE = 4

@@ -4,17 +4,19 @@ momirdeck - builds the offline card corpus for MomirSunmi.
 
 Turns Scryfall's bulk data into two files the Sunmi V2 can serve entirely offline:
 
-    momir.db    SQLite: every Momir-legal creature (name, mana cost, mana value,
-                type line, oracle text, P/T, Scryfall URL) plus an index into...
+    momir.db    SQLite: every rollable card (name, mana cost, mana value, type
+                line and type mask, oracle text, P/T, loyalty, Scryfall URL)
+                plus an index into...
     art.pack    a single append-only blob of pre-dithered 1-bit artwork, 384 px
                 wide, ready to hand straight to the thermal printer.
 
-Why one pack file instead of 17k PNGs: the V2's eMMC hates small files, and a
+Why one pack file instead of 30k PNGs: the V2's eMMC hates small files, and a
 1-bit raster needs no decoding at print time - it *is* the ESC/POS payload.
 
 Usage:
-    python momirdeck.py build-db           # creatures
-    python momirdeck.py build-tokens       # what those creatures put onto the battlefield
+    python momirdeck.py build-db           # creatures, artifacts, enchantments,
+                                           # planeswalkers, battles, instants, sorceries
+    python momirdeck.py build-tokens       # what those cards put onto the battlefield
     python momirdeck.py build-art          # resumable, run it again if it dies
     python momirdeck.py stats
     python momirdeck.py push               # adb push to the device
@@ -63,7 +65,7 @@ PACK_MAGIC = b"MOMIRART"
 PACK_VERSION = 1
 PACK_HEADER_LEN = 16
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2      # 2 added cards.type_mask and cards.loyalty
 
 # A printed slip has to slide into a standard Magic sleeve, so it must not be
 # longer than a real card: 63 x 88 mm. 203 dpi = 8 dots/mm, so 88 mm = 704 dots.
@@ -95,6 +97,39 @@ PAPER_LEGALITY_FORMATS = ("vintage", "legacy", "commander")
 # Layouts where both halves sit on the physical front of the card, so the whole
 # type line counts. Everything else is judged by its front face alone.
 BOTH_HALVES_ON_FRONT = {"split", "adventure", "flip"}
+
+# Card type bits, mirrored value-for-value in the app, which rolls with
+# `WHERE type_mask & :mask != 0`. Never renumber them: a corpus built last month
+# is still on the device.
+TYPE_CREATURE     = 1
+TYPE_ARTIFACT     = 2
+TYPE_ENCHANTMENT  = 4
+TYPE_PLANESWALKER = 8
+TYPE_LAND         = 16
+TYPE_BATTLE       = 32
+TYPE_INSTANT      = 64
+TYPE_SORCERY      = 128
+
+# A card gets every bit its type line names, so an artifact creature answers to a
+# roll for either. Order matters only for the breakdown build-db prints.
+TYPE_WORDS = (
+    ("Creature", TYPE_CREATURE),
+    ("Artifact", TYPE_ARTIFACT),
+    ("Enchantment", TYPE_ENCHANTMENT),
+    ("Planeswalker", TYPE_PLANESWALKER),
+    ("Land", TYPE_LAND),
+    ("Battle", TYPE_BATTLE),
+    ("Instant", TYPE_INSTANT),
+    ("Sorcery", TYPE_SORCERY),
+)
+
+# Lands are the one type left out. Being handed a random Wastes is not a game
+# anybody wants to play, and the 1,100-odd of them would cost 15 MB of art.pack
+# and two minutes of Scryfall's bandwidth for slips that never get used. The LAND
+# bit is still set where it belongs, so Dryad Arbor comes along anyway - on its
+# creature bit.
+ADMITTED_TYPES = (TYPE_CREATURE | TYPE_ARTIFACT | TYPE_ENCHANTMENT
+                  | TYPE_PLANESWALKER | TYPE_BATTLE | TYPE_INSTANT | TYPE_SORCERY)
 
 
 # --------------------------------------------------------------------------
@@ -138,7 +173,7 @@ class RateLimiter:
 
 
 # --------------------------------------------------------------------------
-# Card filtering - this is the definition of "Momir-legal"
+# Card filtering - this is the definition of what the corpus holds
 # --------------------------------------------------------------------------
 
 def _front_face(card: dict) -> dict:
@@ -149,7 +184,7 @@ def _front_face(card: dict) -> dict:
 
 
 def type_line_for_filter(card: dict) -> str:
-    """The type line that decides whether this card is a creature."""
+    """The type line that decides what this card is."""
     if card.get("layout") in BOTH_HALVES_ON_FRONT:
         return card.get("type_line", "")
     face = _front_face(card)
@@ -162,37 +197,57 @@ def is_paper_card(card: dict) -> bool:
     return any(legalities.get(f, "not_legal") != "not_legal" for f in PAPER_LEGALITY_FORMATS)
 
 
-def is_momir_legal(card: dict) -> bool:
-    """
-    Roughly the Scryfall query `t:creature -is:alchemy -is:funny -is:digital`,
-    with two deliberate deviations, both documented in docs/data-pipeline.md:
+def type_mask_for(type_line: str) -> int:
+    """The TYPE_* bits a type line names, supertypes and subtypes ignored."""
+    # Cutting at the em dash drops the subtypes, and on the layouts whose two
+    # halves both sit on the front it does a second job: it is what keeps Brazen
+    # Borrower a creature card rather than half an instant. A split card such as
+    # Wear // Tear has no em dash at all and rightly keeps both of its bits.
+    head = type_line.split("—", 1)[0]
+    mask = 0
+    for word, bit in TYPE_WORDS:
+        if word in head:
+            mask |= bit
+    return mask
 
-      1. A modal/transforming card only counts if its *front* face is a creature.
-         Scryfall's `t:creature` matches either face, so it also returns things
-         like Westvale Abbey // Ormendahl. Momir Vig copies creature *cards*, and
-         Westvale Abbey is a land.
+
+def corpus_type_mask(card: dict) -> int:
+    """
+    This card's type bits if it belongs in the corpus, 0 if it does not.
+
+    Roughly the Scryfall query `-is:alchemy -is:funny -is:digital` over the seven
+    admitted types, with two deliberate deviations, both documented in
+    docs/data-pipeline.md:
+
+      1. A modal/transforming card is judged by its *front* face. Scryfall's
+         `t:creature` matches either face, so it also returns things like
+         Westvale Abbey // Ormendahl. You roll a *card*, and Westvale Abbey is a
+         land.
       2. Paper-ness is decided by legality, not by the `digital` flag - see the
          comment on PAPER_LEGALITY_FORMATS.
+
+    Only the admitted set widened when the app learned to roll more than
+    creatures; every quality rule below predates it and is unchanged.
     """
     if card.get("layout") in EXCLUDED_LAYOUTS:
-        return False
+        return 0
     if card.get("set_type") in EXCLUDED_SET_TYPES:
-        return False
+        return 0
     if not is_paper_card(card):
-        return False
+        return 0
     # Alchemy rebalanced cards are prefixed "A-" and are digital-only.
     if card.get("name", "").startswith("A-"):
-        return False
+        return 0
 
     type_line = type_line_for_filter(card)
-    if "Creature" not in type_line:
-        return False
     if "Token" in type_line:
-        return False
-    return True
+        return 0
+
+    mask = type_mask_for(type_line)
+    return mask if mask & ADMITTED_TYPES else 0
 
 
-def extract_card(card: dict) -> "CardRow | None":
+def extract_card(card: dict, type_mask: int) -> "CardRow | None":
     face = _front_face(card)
 
     mana_cost = face.get("mana_cost") or card.get("mana_cost") or ""
@@ -221,9 +276,13 @@ def extract_card(card: dict) -> "CardRow | None":
         mana_cost=mana_cost,
         mv=int(round(float(card.get("cmc") or 0))),
         type_line=card.get("type_line") or face.get("type_line") or "",
+        type_mask=type_mask,
         oracle_text=oracle_text,
         power=face.get("power") or card.get("power"),
         toughness=face.get("toughness") or card.get("toughness"),
+        # Front face only, so Jace, Vryn's Prodigy prints as the creature he is
+        # instead of borrowing the 5 off his flip side.
+        loyalty=face.get("loyalty"),
         # Colour identity, not colour: it is defined on the whole card, so it is
         # always top-level even for a two-faced one.
         color_identity="".join(card.get("color_identity") or []),
@@ -239,9 +298,11 @@ class CardRow:
     mana_cost: str
     mv: int
     type_line: str
+    type_mask: int
     oracle_text: str
     power: "str | None"
     toughness: "str | None"
+    loyalty: "str | None"
     color_identity: str
     scryfall_uri: str
     art_uri: str
@@ -262,9 +323,14 @@ CREATE TABLE IF NOT EXISTS cards (
     mana_cost    TEXT NOT NULL DEFAULT '',
     mv           INTEGER NOT NULL,
     type_line    TEXT NOT NULL DEFAULT '',
+    -- TYPE_* bits of the front face. The app rolls with `type_mask & :mask != 0`.
+    type_mask    INTEGER NOT NULL DEFAULT 0,
     oracle_text  TEXT NOT NULL DEFAULT '',
     power        TEXT,
     toughness    TEXT,
+    -- Starting loyalty, planeswalkers only. A planeswalker slip without it is
+    -- not something you can play with.
+    loyalty      TEXT,
     -- WUBRG letters. Drives the colour of the print animation on the device.
     color_identity TEXT NOT NULL DEFAULT '',
     scryfall_uri TEXT NOT NULL DEFAULT '',
@@ -279,7 +345,7 @@ CREATE INDEX IF NOT EXISTS ix_cards_art ON cards(art_off) WHERE art_off IS NULL;
 -- Scanning a printed slip resolves the QR straight back to a row.
 CREATE INDEX IF NOT EXISTS ix_cards_uri ON cards(scryfall_uri);
 
--- Tokens a creature can put onto the battlefield. Same shape as cards, minus the
+-- Tokens a card can put onto the battlefield. Same shape as cards, minus the
 -- things a token does not have (mana cost, mana value).
 CREATE TABLE IF NOT EXISTS tokens (
     oracle_id    TEXT PRIMARY KEY,
@@ -308,7 +374,15 @@ CREATE INDEX IF NOT EXISTS ix_card_tokens ON card_tokens(card_oracle_id);
 # them to a database that already exists, so they are applied by hand.
 MIGRATIONS = [
     ("cards", "color_identity", "TEXT NOT NULL DEFAULT ''"),
+    ("cards", "type_mask", "INTEGER NOT NULL DEFAULT 0"),
+    ("cards", "loyalty", "TEXT"),
 ]
+
+# An index over a migrated column cannot live in SCHEMA: that runs first, on a
+# database where the column does not exist yet.
+LATE_INDEXES = """
+CREATE INDEX IF NOT EXISTS ix_cards_type_mv ON cards(type_mask, mv);
+"""
 
 
 def connect(db_path: str) -> sqlite3.Connection:
@@ -321,8 +395,26 @@ def connect(db_path: str) -> sqlite3.Connection:
         if column not in existing:
             log(f"  migrating: adding {table}.{column}")
             conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {decl}")
+            if (table, column) == ("cards", "type_mask"):
+                _backfill_type_mask(conn)
+
+    conn.executescript(LATE_INDEXES)
     conn.commit()
     return conn
+
+
+def _backfill_type_mask(conn: sqlite3.Connection) -> None:
+    # Left at the default 0 the column would match no roll at all, which turns a
+    # corpus somebody built last month into an app that never prints anything.
+    # The stored type lines are enough to reconstruct the mask, so an old build
+    # keeps working - as the creature-only corpus it is - until the next
+    # build-db widens it.
+    rows = conn.execute("SELECT oracle_id, type_line FROM cards").fetchall()
+    conn.executemany(
+        "UPDATE cards SET type_mask = ? WHERE oracle_id = ?",
+        [(type_mask_for(type_line or ""), oracle_id) for oracle_id, type_line in rows],
+    )
+    log(f"  migrating: derived type_mask for {len(rows):,} rows")
 
 
 def set_meta(conn: sqlite3.Connection, key: str, value) -> None:
@@ -371,9 +463,10 @@ def cmd_build_db(args) -> int:
         rows = []
         for line in _iter_card_json(buffered, is_jsonl):
             seen += 1
-            if not is_momir_legal(line):
+            type_mask = corpus_type_mask(line)
+            if not type_mask:
                 continue
-            row = extract_card(line)
+            row = extract_card(line, type_mask)
             if row is None:
                 continue
             kept += 1
@@ -386,7 +479,7 @@ def cmd_build_db(args) -> int:
                 updated += u
                 conn.commit()
                 rows.clear()
-                log(f"  ...{seen:,} scanned, {kept:,} creatures kept")
+                log(f"  ...{seen:,} scanned, {kept:,} cards kept")
 
         if rows:
             a, u = _upsert(conn, rows, existing)
@@ -415,10 +508,11 @@ def cmd_build_db(args) -> int:
     dt = time.monotonic() - t0
     log("")
     log(f"Scanned  {seen:,} Oracle cards in {dt:.0f}s")
-    log(f"Kept     {kept:,} Momir-legal creatures ({added:,} new, {updated:,} refreshed)")
+    log(f"Kept     {kept:,} rollable cards ({added:,} new, {updated:,} refreshed)")
     if removed:
         log(f"Removed  {removed:,} cards that no longer qualify")
 
+    _print_type_breakdown(conn)
     _print_mv_histogram(conn)
     conn.close()
     return 0
@@ -448,25 +542,42 @@ def _upsert(conn: sqlite3.Connection, rows: "list[CardRow]", existing: set) -> "
             # the artwork already in the pack stays valid.
             conn.execute(
                 """UPDATE cards SET name=?, mana_cost=?, mv=?, type_line=?,
-                       oracle_text=?, power=?, toughness=?, color_identity=?,
-                       scryfall_uri=?, art_uri=?
+                       type_mask=?, oracle_text=?, power=?, toughness=?, loyalty=?,
+                       color_identity=?, scryfall_uri=?, art_uri=?
                    WHERE oracle_id=?""",
-                (r.name, r.mana_cost, r.mv, r.type_line, r.oracle_text,
-                 r.power, r.toughness, r.color_identity, r.scryfall_uri, r.art_uri,
-                 r.oracle_id),
+                (r.name, r.mana_cost, r.mv, r.type_line, r.type_mask, r.oracle_text,
+                 r.power, r.toughness, r.loyalty, r.color_identity, r.scryfall_uri,
+                 r.art_uri, r.oracle_id),
             )
             updated += 1
         else:
             conn.execute(
                 """INSERT INTO cards(oracle_id, name, mana_cost, mv, type_line,
-                       oracle_text, power, toughness, color_identity, scryfall_uri, art_uri)
-                   VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
-                (r.oracle_id, r.name, r.mana_cost, r.mv, r.type_line, r.oracle_text,
-                 r.power, r.toughness, r.color_identity, r.scryfall_uri, r.art_uri),
+                       type_mask, oracle_text, power, toughness, loyalty,
+                       color_identity, scryfall_uri, art_uri)
+                   VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                (r.oracle_id, r.name, r.mana_cost, r.mv, r.type_line, r.type_mask,
+                 r.oracle_text, r.power, r.toughness, r.loyalty, r.color_identity,
+                 r.scryfall_uri, r.art_uri),
             )
             existing.add(r.oracle_id)
             added += 1
     return added, updated
+
+
+def _print_type_breakdown(conn: sqlite3.Connection) -> None:
+    total = conn.execute("SELECT COUNT(*) FROM cards").fetchone()[0]
+    if not total:
+        return
+    log("")
+    log("Types (a card counts once per type it carries):")
+    for word, bit in TYPE_WORDS:
+        count = conn.execute(
+            "SELECT COUNT(*) FROM cards WHERE type_mask & ? != 0", (bit,)
+        ).fetchone()[0]
+        if count:
+            log(f"  {word:<13} {count:>6,}")
+    log(f"  {'cards':<13} {total:>6,}")
 
 
 def _print_mv_histogram(conn: sqlite3.Connection) -> None:
@@ -487,7 +598,7 @@ def _print_mv_histogram(conn: sqlite3.Connection) -> None:
 
 def cmd_build_tokens(args) -> int:
     """
-    Works out which tokens each creature can make, and stores them.
+    Works out which tokens each card can make, and stores them.
 
     Scryfall models this with `all_parts`: every card carries a list of related
     objects, and the ones with component == "token" are exactly what that card
@@ -510,15 +621,20 @@ def cmd_build_tokens(args) -> int:
     url = entry.get("jsonl_download_uri") or entry.get("download_uri")
     is_jsonl = "jsonl" in url
 
-    log("Scanning creatures for token references...")
-    edges: "list[tuple[str, str]]" = []      # (creature oracle_id, token printing id)
+    log("Scanning cards for token references...")
+    edges: "list[tuple[str, str]]" = []      # (card oracle_id, token printing id)
     printing_ids: "set[str]" = set()
 
     with open_url(url, accept="*/*", timeout=300) as raw:
         stream = gzip.GzipFile(fileobj=raw) if url.endswith(".gz") else raw
         buffered = io.BufferedReader(stream, buffer_size=1 << 20)
         for card in _iter_card_json(buffered, is_jsonl):
-            if not is_momir_legal(card):
+            # Every card the corpus holds, not just creatures. This used to be
+            # creatures only, which was right when they were all the app could
+            # roll - but a planeswalker whose entire job is making Soldiers is
+            # the most ordinary planeswalker there is, and half the enchantments
+            # worth rolling make something too.
+            if not corpus_type_mask(card):
                 continue
             oracle_id = card.get("oracle_id")
             if not oracle_id:
@@ -531,7 +647,7 @@ def cmd_build_tokens(args) -> int:
                     edges.append((oracle_id, token_id))
                     printing_ids.add(token_id)
 
-    log(f"  {len(edges):,} token references across {len({e[0] for e in edges}):,} creatures")
+    log(f"  {len(edges):,} token references across {len({e[0] for e in edges}):,} cards")
     log(f"  {len(printing_ids):,} distinct token printings to resolve")
 
     log("Resolving tokens via /cards/collection...")
@@ -596,8 +712,8 @@ def cmd_build_tokens(args) -> int:
             row,
         )
 
-    # Collapse printing-level edges to Oracle-level ones. Two creatures pointing
-    # at two different printings of the same 2/2 Zombie become one token.
+    # Collapse printing-level edges to Oracle-level ones. Two cards pointing at
+    # two different printings of the same 2/2 Zombie become one token.
     conn.execute("DELETE FROM card_tokens")
     inserted = 0
     for card_oracle_id, printing_id in edges:
@@ -614,11 +730,11 @@ def cmd_build_tokens(args) -> int:
     conn.commit()
 
     linked = conn.execute("SELECT COUNT(*) FROM card_tokens").fetchone()[0]
-    creatures = conn.execute(
+    makers = conn.execute(
         "SELECT COUNT(DISTINCT card_oracle_id) FROM card_tokens"
     ).fetchone()[0]
     log("")
-    log(f"Stored {len(tokens):,} tokens, {linked:,} links, {creatures:,} creatures make tokens")
+    log(f"Stored {len(tokens):,} tokens, {linked:,} links, {makers:,} cards make tokens")
     log("Run build-art again to fetch the token artwork.")
     conn.close()
     return 0
@@ -818,6 +934,7 @@ def cmd_stats(args) -> int:
     conn = connect(args.db)
     log(f"Built at   {get_meta(conn, 'built_at', '?')}")
     log(f"Scryfall   {get_meta(conn, 'bulk_updated_at', '?')}")
+    _print_type_breakdown(conn)
     _print_mv_histogram(conn)
     _report_sizes(args, conn)
 
@@ -885,7 +1002,7 @@ def main() -> int:
                    help="keep rows that no longer pass the filter")
     p.set_defaults(func=cmd_build_db)
 
-    p = sub.add_parser("build-tokens", help="map creatures to the tokens they create")
+    p = sub.add_parser("build-tokens", help="map cards to the tokens they create")
     p.set_defaults(func=cmd_build_tokens)
 
     p = sub.add_parser("build-art", help="download, dither and pack artwork (resumable)")

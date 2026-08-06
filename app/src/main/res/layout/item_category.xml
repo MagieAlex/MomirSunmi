@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  One category chip, inflated per CardCategory so the row and the enum cannot
+  drift apart.
+-->
+<TextView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    style="@style/Widget.Momir.Chip"
+    tools:text="Planeswalkers" />

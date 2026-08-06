@@ -29,18 +29,4 @@ data class Token(
 
     val powerToughness: String?
         get() = if (power != null && toughness != null) "$power/$toughness" else null
-
-    /** "2/2 Black Zombie", the way a player would say it out loud. */
-    val shortLabel: String
-        get() = listOfNotNull(powerToughness, colorNames.ifEmpty { null }, name)
-            .joinToString(" ")
-
-    private val colorNames: String
-        get() = colors.mapNotNull { COLOR_NAMES[it] }.joinToString(" ")
-
-    companion object {
-        private val COLOR_NAMES = mapOf(
-            'W' to "White", 'U' to "Blue", 'B' to "Black", 'R' to "Red", 'G' to "Green",
-        )
-    }
 }

@@ -1,15 +1,24 @@
 <?xml version="1.0" encoding="utf-8"?>
 <selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <!--
+      The active segment is a brushed-brass plate, not a flat blue fill: a top-to
+      -bottom gradient plus a brighter hairline is what makes it read as raised
+      metal on a dark frame.
+    -->
     <item android:state_selected="true">
         <shape android:shape="rectangle">
-            <solid android:color="@color/accent" />
-            <corners android:radius="10dp" />
+            <gradient
+                android:angle="270"
+                android:startColor="#D8BA6E"
+                android:endColor="#A98A44" />
+            <corners android:radius="9dp" />
+            <stroke android:width="1dp" android:color="@color/accent_soft" />
         </shape>
     </item>
     <item>
         <shape android:shape="rectangle">
             <solid android:color="@android:color/transparent" />
-            <corners android:radius="10dp" />
+            <corners android:radius="9dp" />
         </shape>
     </item>
 </selector>

@@ -1,6 +1,7 @@
 package software.zeasy.momir
 
 import android.content.Context
+import software.zeasy.momir.data.CardCategory
 import software.zeasy.momir.print.EscPos
 import software.zeasy.momir.print.PrintMode
 
@@ -20,6 +21,12 @@ class Settings(context: Context) {
         get() = runCatching { PrintMode.valueOf(prefs.getString(KEY_MODE, null) ?: "") }
             .getOrDefault(PrintMode.QR)
         set(value) = prefs.edit().putString(KEY_MODE, value.name).apply()
+
+    /** What the dial rolls. Momir Basic is creatures, so that is where it starts. */
+    var cardCategory: CardCategory
+        get() = runCatching { CardCategory.valueOf(prefs.getString(KEY_CATEGORY, null) ?: "") }
+            .getOrDefault(CardCategory.CREATURES)
+        set(value) = prefs.edit().putString(KEY_CATEGORY, value.name).apply()
 
     var copies: Int
         get() = prefs.getInt(KEY_COPIES, 1).coerceIn(1, 5)
@@ -55,6 +62,7 @@ class Settings(context: Context) {
 
     companion object {
         private const val KEY_MODE = "print_mode"
+        private const val KEY_CATEGORY = "card_category"
         private const val KEY_COPIES = "copies"
         private const val KEY_SLIP_LENGTH = "max_slip_mm"
         private const val KEY_TEAR_FEED = "tear_feed_mm"

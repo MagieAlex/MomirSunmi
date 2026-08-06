@@ -1,0 +1,215 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The token sheet.
+
+  It replaces an AlertDialog whose list said "2/2 Black Zombie" in a system font
+  and whose buttons inherited a black background from the dialog theme. This one
+  says what happened at the top - especially when it opened because a slip was
+  scanned - shows what each token actually is, and puts a quantity next to a
+  print button you cannot mistake for anything else.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/sheetRoot"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@drawable/bg_sheet"
+    android:orientation="vertical"
+    android:paddingStart="20dp"
+    android:paddingEnd="20dp"
+    android:paddingTop="18dp"
+    android:paddingBottom="18dp">
+
+    <!-- header -->
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <TextView
+            android:id="@+id/sourceChip"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="@drawable/bg_chip"
+            android:letterSpacing="0.16"
+            android:paddingStart="9dp"
+            android:paddingEnd="9dp"
+            android:paddingTop="4dp"
+            android:paddingBottom="4dp"
+            android:textAllCaps="true"
+            android:textColor="@color/accent"
+            android:textSize="10sp"
+            android:textStyle="bold"
+            tools:text="Scanned slip" />
+
+        <View
+            android:layout_width="0dp"
+            android:layout_height="1dp"
+            android:layout_weight="1" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/sheetTitle"
+        style="@style/TextAppearance.Momir.CardName"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:ellipsize="end"
+        android:maxLines="2"
+        android:textSize="22sp"
+        tools:text="Thragtusk" />
+
+    <TextView
+        android:id="@+id/sheetSubtitle"
+        style="@style/TextAppearance.Momir.Label"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        tools:text="Creates 2 token types" />
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:layout_marginTop="14dp"
+        android:layout_marginBottom="14dp"
+        android:background="@drawable/bg_rule" />
+
+    <!-- token rows, filled in at runtime -->
+
+    <!-- Height is capped in code once the row count is known; four rows scroll. -->
+    <ScrollView
+        android:id="@+id/tokenScroll"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:scrollbars="none">
+
+        <LinearLayout
+            android:id="@+id/tokenList"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical" />
+    </ScrollView>
+
+    <!-- quantity -->
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <TextView
+            style="@style/TextAppearance.Momir.Label"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/tokens_quantity" />
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="42dp"
+            android:background="@drawable/bg_stepper"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/quantityMinus"
+                android:layout_width="42dp"
+                android:layout_height="match_parent"
+                android:background="@drawable/bg_stepper_key"
+                android:clickable="true"
+                android:focusable="true"
+                android:gravity="center"
+                android:text="@string/tokens_minus"
+                android:textColor="@color/accent"
+                android:textSize="20sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/quantityValue"
+                android:layout_width="46dp"
+                android:layout_height="match_parent"
+                android:fontFamily="serif"
+                android:gravity="center"
+                android:textColor="@color/text_primary"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                tools:text="3" />
+
+            <TextView
+                android:id="@+id/quantityPlus"
+                android:layout_width="42dp"
+                android:layout_height="match_parent"
+                android:background="@drawable/bg_stepper_key"
+                android:clickable="true"
+                android:focusable="true"
+                android:gravity="center"
+                android:text="@string/tokens_plus"
+                android:textColor="@color/accent"
+                android:textSize="20sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- actions -->
+
+    <TextView
+        android:id="@+id/printButton"
+        android:layout_width="match_parent"
+        android:layout_height="52dp"
+        android:layout_marginTop="16dp"
+        android:background="@drawable/bg_button_gold"
+        android:clickable="true"
+        android:focusable="true"
+        android:gravity="center"
+        android:letterSpacing="0.12"
+        android:textAllCaps="true"
+        android:textColor="#231B08"
+        android:textSize="14sp"
+        android:textStyle="bold"
+        tools:text="Print 3 × Zombie" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:orientation="horizontal">
+
+        <TextView
+            android:id="@+id/printEachButton"
+            android:layout_width="0dp"
+            android:layout_height="46dp"
+            android:layout_marginEnd="10dp"
+            android:layout_weight="1"
+            android:background="@drawable/bg_button_ghost"
+            android:clickable="true"
+            android:focusable="true"
+            android:gravity="center"
+            android:letterSpacing="0.1"
+            android:text="@string/tokens_print_each"
+            android:textAllCaps="true"
+            android:textColor="@color/accent"
+            android:textSize="12sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/closeButton"
+            android:layout_width="0dp"
+            android:layout_height="46dp"
+            android:layout_weight="1"
+            android:background="@drawable/bg_button_ghost"
+            android:clickable="true"
+            android:focusable="true"
+            android:gravity="center"
+            android:letterSpacing="0.1"
+            android:text="@string/close"
+            android:textAllCaps="true"
+            android:textColor="@color/text_secondary"
+            android:textSize="12sp"
+            android:textStyle="bold" />
+    </LinearLayout>
+
+</LinearLayout>

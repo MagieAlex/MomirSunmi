@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Secondary action: outlined, never competes with the brass one next to it. -->
+<ripple xmlns:android="http://schemas.android.com/apk/res/android"
+    android:color="#33C9A85C">
+
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="@android:color/transparent" />
+            <corners android:radius="12dp" />
+            <stroke android:width="1dp" android:color="@color/outline" />
+        </shape>
+    </item>
+</ripple>

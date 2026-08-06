@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  A vignette, not a flat fill. One radial gradient centred a little above the
+  middle: the dial and the button sit in the light, the edges fall away to ink,
+  and the glow overlay has something to bloom out of.
+
+  A gradient shape costs the GPU exactly one textured quad per frame - the same
+  as the flat colour it replaces.
+-->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <gradient
+        android:type="radial"
+        android:centerX="0.5"
+        android:centerY="0.42"
+        android:gradientRadius="80%p"
+        android:startColor="@color/background_centre"
+        android:endColor="@color/background" />
+</shape>

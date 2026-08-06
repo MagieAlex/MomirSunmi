@@ -6,6 +6,7 @@ import org.json.JSONObject
 import software.zeasy.momir.data.ArtPack
 import software.zeasy.momir.data.Card
 import software.zeasy.momir.data.CardRepository
+import software.zeasy.momir.data.CardTypes
 import software.zeasy.momir.print.EscPos
 import java.io.BufferedReader
 import java.io.InputStreamReader
@@ -213,9 +214,11 @@ class ScryfallSync(
         if (json.optString("name").startsWith("A-")) return false
 
         val typeLine = typeLineForFilter(json)
-        if (!typeLine.contains("Creature")) return false
         if (typeLine.contains("Token")) return false
-        return true
+        // Anything whose front face names a type some category offers. That
+        // leaves out plain lands, and the oddities with no real type line at all
+        // - dungeons, conspiracies, planes - which nothing could ever roll.
+        return (CardTypes.maskOf(typeLine) and CardTypes.ROLLABLE) != 0
     }
 
     private fun isPaperCard(json: JSONObject): Boolean {
@@ -266,6 +269,7 @@ class ScryfallSync(
             oracleText = oracleText,
             power = face?.optString("power").orEmpty().ifEmpty { json.optString("power") }.ifEmpty { null },
             toughness = face?.optString("toughness").orEmpty().ifEmpty { json.optString("toughness") }.ifEmpty { null },
+            loyalty = face?.optString("loyalty").orEmpty().ifEmpty { json.optString("loyalty") }.ifEmpty { null },
             // Colour identity is a property of the whole card, so it is always
             // top-level even for a two-faced one.
             colorIdentity = json.optJSONArray("color_identity")?.let { array ->

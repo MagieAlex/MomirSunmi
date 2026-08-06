@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  A hairline that fades out at both ends rather than butting into the screen
+  edge. Magic's frames divide sections this way; a full-width line reads as a
+  table border.
+-->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <gradient
+        android:angle="0"
+        android:startColor="#00C9A85C"
+        android:centerColor="@color/accent_dim"
+        android:endColor="#00C9A85C" />
+</shape>

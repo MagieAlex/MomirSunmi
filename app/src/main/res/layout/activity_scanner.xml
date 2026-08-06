@@ -29,14 +29,29 @@
         android:textColor="@color/text_primary"
         android:textSize="15sp" />
 
-    <Button
+    <!--
+      A TextView, for the reason documented in dialog_settings.xml: under a
+      MaterialComponents theme a <Button> is inflated as a MaterialButton, which
+      brings its own background and ignores the borderless style it was given.
+      This one was the last place in the app still carrying that bug.
+    -->
+    <TextView
         android:id="@+id/closeButton"
-        style="@style/Widget.AppCompat.Button.Borderless"
         android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
+        android:layout_height="46dp"
         android:layout_gravity="bottom|center_horizontal"
         android:layout_marginBottom="32dp"
+        android:background="@drawable/bg_button_ghost"
+        android:clickable="true"
+        android:focusable="true"
+        android:gravity="center"
+        android:letterSpacing="0.1"
+        android:paddingStart="28dp"
+        android:paddingEnd="28dp"
         android:text="@string/close"
-        android:textColor="@color/text_primary" />
+        android:textAllCaps="true"
+        android:textColor="@color/text_primary"
+        android:textSize="12sp"
+        android:textStyle="bold" />
 
 </FrameLayout>
