@@ -42,6 +42,10 @@ Both numbers are settings, because the tear-bar distance varies between units an
 paper rolls. Settings → Test print produces a calibration slip: tear it off and
 measure the white band above the card name, which *is* the head-to-tear distance.
 
+The defaults above are not arithmetic — they have been held against a rule on a
+V2 with the stock 12 mm gap, and the slip comes off at 88 mm with the bands where
+this table says they are.
+
 So the renderer has two problems, not one: cards that want more than 568 dots,
 and cards that want less.
 
