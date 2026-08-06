@@ -127,16 +127,11 @@ class MainActivity : AppCompatActivity() {
         binding.resultTokens.setOnClickListener { lastCard?.let { showTokens(it, fromScan = false) } }
         binding.resultText.setOnClickListener { lastCard?.let { showCard(it) } }
 
-        printer.onStateChanged = { connected -> showPrinterState(connected) }
-        showPrinterState(printer.isConnected)
-
         lifecycleScope.launch {
             withContext(Dispatchers.IO) {
                 if (repository.open()) artPack.open()
             }
             refreshCorpus()
-            // The binding attempt itself reports through onStateChanged; this
-            // only has to survive it failing, which leaves the lamp red.
             printer.connect()
         }
     }
@@ -165,7 +160,6 @@ class MainActivity : AppCompatActivity() {
         super.onDestroy()
         resultHandler.removeCallbacks(hideResult)
         spinSyncButton(false)
-        printer.onStateChanged = null
         printer.disconnect()
         artPack.close()
         repository.close()
@@ -887,12 +881,6 @@ class MainActivity : AppCompatActivity() {
         revealResult(hasTokens = false)
     }
 
-    /** The lamp beside the wordmark. */
-    private fun showPrinterState(connected: Boolean) {
-        binding.printerDot.background.setTint(
-            ContextCompat.getColor(this, if (connected) R.color.success else R.color.danger)
-        )
-    }
 
     companion object {
         private const val SLIP_MIN_MM = 50f

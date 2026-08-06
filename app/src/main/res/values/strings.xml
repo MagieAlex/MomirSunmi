@@ -85,7 +85,6 @@
     -->
     <string name="printer_not_connected">Printer not connected</string>
     <string name="printer_not_connected_detail">The V2\'s print service did not answer</string>
-    <string name="printer_state">Printer state</string>
     <string name="print_failed">Print failed</string>
     <string name="nothing_to_roll">Nothing to roll</string>
     <string name="no_tokens">No tokens</string>

@@ -21,24 +21,6 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
-    <!--
-      The printer's state, as a lamp beside the wordmark.
-
-      The AIDL service can go away underneath a running app, and until this was
-      here the first anyone knew of it was a print that did nothing. It is 8 dp
-      because it is not news most of the time.
-    -->
-    <View
-        android:id="@+id/printerDot"
-        android:layout_width="8dp"
-        android:layout_height="8dp"
-        android:layout_marginStart="10dp"
-        android:background="@drawable/bg_dot"
-        android:contentDescription="@string/printer_state"
-        app:layout_constraintBottom_toBottomOf="@id/title"
-        app:layout_constraintStart_toEndOf="@id/title"
-        app:layout_constraintTop_toTopOf="@id/title" />
-
     <ImageButton
         android:id="@+id/scanButton"
         android:layout_width="44dp"

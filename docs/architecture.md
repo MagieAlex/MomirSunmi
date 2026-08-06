@@ -126,15 +126,17 @@ anything at draw time — the palette is `colors.xml`, the frame is four `<shape
 drawables, and the two custom views below build everything from circles,
 gradients and cached shaders.
 
-The header is the wordmark, a printer lamp and three actions, and nothing else.
-It used to carry a corpus counter — cards, artworks, tokens — which was static,
-was a boast, and occupied the most valuable strip on the screen. The same
-numbers are in the settings diagnostics, which is where someone who wants them
-goes looking.
+The header is the wordmark and three actions, and nothing else. It used to carry
+a corpus counter — cards, artworks, tokens — which was static, was a boast, and
+occupied the most valuable strip on the screen. The same numbers are in the
+settings diagnostics, which is where someone who wants them goes looking.
 
-The lamp is 8 dp of green or red, driven by `SunmiPrinter.onStateChanged`. The
-AIDL service is a separate process and can die under a running app; until the
-lamp existed, the first anyone knew of that was a press that produced no paper.
+It briefly carried a printer lamp too, green or red against the wordmark. A
+status light that is green every time you look at it teaches you nothing, and
+the one moment it means something — the AIDL service dying under a running app —
+is the moment nobody is looking at the header. The press that follows says
+"Printer not connected" on the result panel in red, which is the same
+information at the point where it changes what you do.
 
 Every size and letter-spacing on the screen comes from the type scale in
 `themes.xml` — five steps, three trackings — and no layout sets either. There
