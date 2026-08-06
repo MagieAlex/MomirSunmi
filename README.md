@@ -137,11 +137,16 @@ where it left off.
 | Settings → Test print | Prints a calibration slip for dialling in the paper geometry. |
 
 <p align="center">
-  <img src="docs/images/tokens.png" width="235" alt="The token sheet: what the creature creates, a quantity, and a print button">
+  <img src="docs/images/card.png" width="205" alt="The card view: artwork, mana cost in real symbols, type line and rules text">
+  &nbsp;
+  <img src="docs/images/search.png" width="205" alt="Search: a field and a list of matching cards">
+  &nbsp;
+  <img src="docs/images/tokens.png" width="205" alt="The token sheet: what the card creates, a quantity, and a print button">
 </p>
 
 <p align="center">
-  <sub>The token sheet, however it was opened — it says which of the two it was.</sub>
+  <sub>The card behind the slip, the search, and the token sheet — which says
+  whether it was opened from a roll or from a scan.</sub>
 </p>
 
 ### First-run calibration
