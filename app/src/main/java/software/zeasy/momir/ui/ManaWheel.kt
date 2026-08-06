@@ -373,7 +373,18 @@ class ManaWheel @JvmOverloads constructor(
     private fun dp(value: Float) = value * resources.displayMetrics.density
 
     companion object {
-        private const val VISIBLE_ITEMS = 5
+        /**
+         * How many discs the dial asks for, and gets.
+         *
+         * This is only the desired height - the layout constrains the wheel
+         * between the chip row and the count line and hands back whatever is
+         * left, and everything the drum does is computed from the measured
+         * height. It said five, which on a 720 x 1440 V2 was never once true:
+         * the space is enough for three, which is what the arc has always been
+         * drawn for. A constant that describes a layout that does not exist is
+         * worse than no constant.
+         */
+        private const val VISIBLE_ITEMS = 3
 
         /**
          * The generic mana disc. Magic prints it as a warm off-white stone with a

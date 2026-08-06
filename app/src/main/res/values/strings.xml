@@ -54,7 +54,6 @@
     <string name="none_planeswalkers">No planeswalker at mana value %1$d</string>
     <string name="none_spells">No spell at mana value %1$d</string>
 
-    <string name="preview_written">Preview: %1$s</string>
     <string name="slip_length_toast">Slip is %1$.0f mm</string>
     <string name="no_corpus_title">No card data on this device</string>
     <string name="no_corpus_body">Build the corpus on a PC and push it over adb:\n\npython momirdeck.py build-db\npython momirdeck.py build-art\npython momirdeck.py push\n\nOr tap Resync to download it here, which is slower.</string>
@@ -69,14 +68,30 @@
     <string name="settings_copies">Copies per print</string>
     <string name="settings_slip_length">Slip length</string>
     <string name="settings_slip_length_hint">Every slip is printed to exactly this length, so they stack like cards. A Magic card is 88 mm.</string>
-    <string name="settings_tear_feed">Feed after printing</string>
-    <string name="settings_tear_feed_hint">Paper fed past the tear bar. Increase if the last line gets cut off, decrease if slips come out too long.</string>
+    <string name="settings_tear_gap">Head to tear bar</string>
+    <string name="settings_tear_gap_hint">The distance from the print head to the tear bar. It is fed after every slip, and it is also the blank margin at the head, because that paper is already past the head when printing starts.</string>
+    <string name="settings_bottom_margin">Margin at the foot</string>
+    <string name="settings_bottom_margin_hint">Blank paper under the rules text, fed on top of the distance above. It comes out of the layout\'s space, not the slip\'s length.</string>
     <string name="settings_test_print">Test print</string>
     <string name="settings_printer">Printer</string>
     <string name="settings_corpus">Card data</string>
 
-    <string name="printer_not_connected">Printer service not connected</string>
-    <string name="print_failed">Print failed: %1$s</string>
+    <!--
+      Notices. Each is a heading and a line under it, because that is the shape
+      of the result panel they are shown on - the panel that already knew how to
+      appear, hold and retire itself, and that a toast was floating over.
+    -->
+    <string name="printer_not_connected">Printer not connected</string>
+    <string name="printer_not_connected_detail">The V2\'s print service did not answer</string>
+    <string name="printer_state">Printer state</string>
+    <string name="print_failed">Print failed</string>
+    <string name="nothing_to_roll">Nothing to roll</string>
+    <string name="no_tokens">No tokens</string>
+    <string name="scan_failed">Scan failed</string>
+    <string name="sync_title">Card data</string>
+    <string name="sync_starting">Downloading what this device is missing</string>
+    <string name="preview_title">Preview</string>
+    <string name="preview_detail">Written to preview.png, nothing printed</string>
     <string name="result_loyalty">Loyalty %1$s</string>
 
     <string name="scan">Scan a slip</string>

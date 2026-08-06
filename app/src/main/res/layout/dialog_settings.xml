@@ -24,13 +24,10 @@
         android:paddingBottom="8dp">
 
         <TextView
-            style="@style/TextAppearance.Momir.CardName"
+            style="@style/TextAppearance.Momir.SectionHeading"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:letterSpacing="0.1"
-            android:text="@string/settings"
-            android:textAllCaps="true"
-            android:textSize="16sp" />
+            android:text="@string/settings" />
 
         <View
             android:layout_width="match_parent"
@@ -49,18 +46,16 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="@string/settings_artwork"
-            android:textColor="@color/text_primary"
-            android:textSize="15sp"
+            android:textAppearance="@style/TextAppearance.Momir.Body"
             android:theme="@style/ThemeOverlay.Momir.Switch"
             app:switchPadding="12dp" />
 
         <TextView
+            style="@style/TextAppearance.Momir.Caption"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="4dp"
-            android:text="@string/settings_artwork_hint"
-            android:textColor="@color/text_secondary"
-            android:textSize="12sp" />
+            android:text="@string/settings_artwork_hint" />
 
         <View
             android:layout_width="match_parent"
@@ -72,9 +67,8 @@
         <TextView
             android:id="@+id/copiesLabel"
             android:layout_width="match_parent"
+            style="@style/TextAppearance.Momir.Body"
             android:layout_height="wrap_content"
-            android:textColor="@color/text_primary"
-            android:textSize="15sp"
             tools:text="Copies per print: 1" />
 
         <SeekBar
@@ -93,9 +87,8 @@
         <TextView
             android:id="@+id/slipLabel"
             android:layout_width="match_parent"
+            style="@style/TextAppearance.Momir.Body"
             android:layout_height="wrap_content"
-            android:textColor="@color/text_primary"
-            android:textSize="15sp"
             tools:text="Slip length: 88 mm" />
 
         <SeekBar
@@ -106,10 +99,9 @@
 
         <TextView
             android:layout_width="match_parent"
+            style="@style/TextAppearance.Momir.Caption"
             android:layout_height="wrap_content"
-            android:text="@string/settings_slip_length_hint"
-            android:textColor="@color/text_secondary"
-            android:textSize="12sp" />
+            android:text="@string/settings_slip_length_hint" />
 
         <View
             android:layout_width="match_parent"
@@ -121,10 +113,9 @@
         <TextView
             android:id="@+id/feedLabel"
             android:layout_width="match_parent"
+            style="@style/TextAppearance.Momir.Body"
             android:layout_height="wrap_content"
-            android:textColor="@color/text_primary"
-            android:textSize="15sp"
-            tools:text="Feed after printing: 12 mm" />
+            tools:text="Head to tear bar: 12 mm" />
 
         <SeekBar
             android:id="@+id/feedSeek"
@@ -134,10 +125,35 @@
 
         <TextView
             android:layout_width="match_parent"
+            style="@style/TextAppearance.Momir.Caption"
             android:layout_height="wrap_content"
-            android:text="@string/settings_tear_feed_hint"
-            android:textColor="@color/text_secondary"
-            android:textSize="12sp" />
+            android:text="@string/settings_tear_gap_hint" />
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:layout_marginTop="16dp"
+            android:layout_marginBottom="16dp"
+            android:background="@color/outline" />
+
+        <TextView
+            android:id="@+id/bottomMarginLabel"
+            android:layout_width="match_parent"
+            style="@style/TextAppearance.Momir.Body"
+            android:layout_height="wrap_content"
+            tools:text="Margin at the foot: 5 mm" />
+
+        <SeekBar
+            android:id="@+id/bottomMarginSeek"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:max="20" />
+
+        <TextView
+            android:layout_width="match_parent"
+            style="@style/TextAppearance.Momir.Caption"
+            android:layout_height="wrap_content"
+            android:text="@string/settings_bottom_margin_hint" />
 
         <View
             android:layout_width="match_parent"
@@ -151,12 +167,12 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:fontFamily="monospace"
-            android:textColor="@color/text_secondary"
-            android:textSize="11sp"
+            android:textAppearance="@style/TextAppearance.Momir.Caption"
             tools:text="service 1.1.30" />
 
         <TextView
             android:id="@+id/testPrintButton"
+            style="@style/TextAppearance.Momir.Action"
             android:layout_width="match_parent"
             android:layout_height="46dp"
             android:layout_marginTop="16dp"
@@ -164,12 +180,7 @@
             android:clickable="true"
             android:focusable="true"
             android:gravity="center"
-            android:letterSpacing="0.1"
-            android:text="@string/settings_test_print"
-            android:textAllCaps="true"
-            android:textColor="@color/accent"
-            android:textSize="12sp"
-            android:textStyle="bold" />
+            android:text="@string/settings_test_print" />
 
     </LinearLayout>
 </ScrollView>

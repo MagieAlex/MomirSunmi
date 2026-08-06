@@ -126,10 +126,21 @@ anything at draw time — the palette is `colors.xml`, the frame is four `<shape
 drawables, and the two custom views below build everything from circles,
 gradients and cached shaders.
 
-The header is the wordmark and three actions, and nothing else. It used to carry
-a corpus counter — cards, artworks, tokens — which was static, was a boast, and
-occupied the most valuable strip on the screen. The same numbers are in the
-settings diagnostics, which is where someone who wants them goes looking.
+The header is the wordmark, a printer lamp and three actions, and nothing else.
+It used to carry a corpus counter — cards, artworks, tokens — which was static,
+was a boast, and occupied the most valuable strip on the screen. The same
+numbers are in the settings diagnostics, which is where someone who wants them
+goes looking.
+
+The lamp is 8 dp of green or red, driven by `SunmiPrinter.onStateChanged`. The
+AIDL service is a separate process and can die under a running app; until the
+lamp existed, the first anyone knew of that was a press that produced no paper.
+
+Every size and letter-spacing on the screen comes from the type scale in
+`themes.xml` — five steps, three trackings — and no layout sets either. There
+used to be thirteen sizes and nine trackings, with `TextAppearance.Momir.CardName`
+declaring 19sp and all four of its call sites overriding it, which is what a
+design tuned view by view looks like from a distance.
 
 The category chips under the header say what the dial rolls: permanents,
 creatures, artifacts, enchantments, planeswalkers or spells. Six of them are
@@ -202,8 +213,10 @@ muddy as emitted light on a near-black screen. Black gets violet, because there
 is no such thing as a black glow and every digital Magic client has made the
 same substitution for twenty years.
 
-`TokenSheet` is the sheet a creature's tokens come up in — from the panel at the
-bottom of the screen, or straight from a scan. It carries a stamp saying which of
+`TokenSheet` is the bottom sheet a card's tokens come up in — from the panel at
+the bottom of the screen, or straight from a scan. It is anchored to the bottom
+edge at full width and rises from it; as a floating dialog it hovered over the
+result panel with the card's name showing above and below it at once. It carries a stamp saying which of
 those two it was, because a scan happens with the camera in your hand and no
 other context on screen. Each token is shown as a token (colour stripe, P/T,
 name, type line), and the quantity stepper next to the print button is there
@@ -219,6 +232,13 @@ The result panel at the bottom of the main screen retires itself: 15 seconds
 after a print, or 45 if the card makes tokens, since then the panel is also the
 only way back into the sheet. It fades to `INVISIBLE` rather than `GONE`, because
 the print button is anchored to it and would otherwise drop down the screen.
+
+It also carries every notice the app has to give — printer not connected, print
+failed, nothing to roll, resync finished — with the colour-identity stripe
+swapped for a solid red one when it is bad news. Those were nine stock Android
+toasts: a grey lozenge in the system font floating over a screen designed as a
+card, on a device where a printer that is not connected is at least as much of a
+result as a creature that printed.
 
 `ScannerActivity` uses `android.hardware.Camera` on purpose: on API 25, Camera2
 runs at LEGACY hardware level, which is the old pipeline behind a newer

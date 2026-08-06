@@ -5,9 +5,13 @@
 - A **Sunmi V2** (or another Sunmi handheld with the built-in 58 mm printer and
   the `woyou.aidlservice.jiuiv5` service).
 - 58 mm thermal paper.
-- **JDK 17 or newer** and the Android SDK with platform 34.
+- **JDK 17, 21 or another version Gradle 8.9 supports**, and the Android SDK
+  with platform 34. Not necessarily the JDK bundled with Android Studio: recent
+  Studio builds ship a JBR 25, and Gradle 8.9 fails on it with a bare version
+  string as its entire error message (`* What went wrong: 25.0.2`). Point
+  `JAVA_HOME` at a 21 if that happens.
 - **Python 3.9+** with Pillow, for the corpus builder.
-- About **300 MB free** on the device.
+- About **500 MB free** on the device.
 
 ## Enabling adb
 
@@ -73,7 +77,7 @@ python momirdeck.py push
 
 That is `adb push` to `/sdcard/Android/data/software.zeasy.momir/files/`. An
 app always owns its external files directory, so no runtime permission is
-involved. Pushing 249 MB takes about 20 seconds over USB 2.
+involved. Pushing the 427 MB corpus takes about half a minute over USB 2.
 
 The app picks the files up on next launch. To do it by hand:
 

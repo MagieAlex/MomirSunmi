@@ -349,10 +349,14 @@ class PrintButton @JvmOverloads constructor(
             pipPaint.alpha = when {
                 !isEnabled -> 40
                 isMine && flashing -> 255
-                isMine -> (115 + 95 * chargeAmount).toInt()
-                // Dark enough to stay quiet, bright enough that the five gems are
-                // still legibly white, blue, black, red and green at rest.
-                else -> 115
+                isMine -> (REST_GEM_ALPHA + (255 - REST_GEM_ALPHA) * chargeAmount).toInt()
+                // The five colours are the one thing on this button that says
+                // what it is going to do. At 115 they were a rumour: you could
+                // not tell white from colourless until a card had already
+                // printed, which is after the wheel would have explained
+                // anything. Bright enough to read at arm's length, dark enough
+                // that a lit gem is still visibly lit.
+                else -> REST_GEM_ALPHA
             }
             canvas.drawCircle(x, y, pipRadius, pipPaint)
 
@@ -711,6 +715,9 @@ class PrintButton @JvmOverloads constructor(
     companion object {
         /** Face and rim as fractions of the outer radius. */
         private const val FACE = 0.81f
+
+        /** What an unlit gem is worth. See [drawPentagon]. */
+        private const val REST_GEM_ALPHA = 185
         private const val RIM = 0.94f
 
         private const val DEG_TO_RAD = (Math.PI / 180).toFloat()
@@ -810,9 +817,18 @@ class PrintButton @JvmOverloads constructor(
             floatArrayOf(272f, 0.30f, 0.72f, 0.012f),
         )
 
-        private val FACE_LIT = Color.parseColor("#2E333C")
-        private val FACE_MID = Color.parseColor("#191D24")
-        private val FACE_DEEP = Color.parseColor("#0A0C10")
+        /**
+         * The stone, lit from above.
+         *
+         * All three stops sit above the screen's own centre (#12141A). They used
+         * to end below it: the face's outer edge was darker than the background
+         * it was resting on, so the seal read as a hole punched in the screen
+         * rather than as an object placed on it. A struck disc catches more light
+         * than the table it sits on, whatever the light is doing.
+         */
+        private val FACE_LIT = Color.parseColor("#373D48")
+        private val FACE_MID = Color.parseColor("#242932")
+        private val FACE_DEEP = Color.parseColor("#161A21")
         private val GROOVE = Color.parseColor("#05060A")
         private val SOCKET = Color.parseColor("#0A0B0E")
         private val BEVEL = Color.parseColor("#8C93A3")

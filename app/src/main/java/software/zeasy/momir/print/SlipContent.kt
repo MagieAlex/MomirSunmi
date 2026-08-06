@@ -6,20 +6,23 @@ import software.zeasy.momir.data.Token
 /**
  * What actually goes on a slip, independent of whether it came from a creature
  * card or a token. Both print through the same layout code; the only visible
- * difference is that a creature carries a mana value badge and a token says so
- * in its subline.
+ * difference is that a card carries a mana value badge and a token's type line
+ * says "Token" in it, which Scryfall's own type line already does.
  */
 data class SlipContent(
     val title: String,
     /** Mana value, drawn in the ring. Null for tokens, which have no mana value. */
     val badge: String?,
     /**
-     * Full-width line under the type line: mana cost and colour, or TOKEN and
-     * colour. Colour is spelled out because a thermal slip is monochrome - there
-     * is nothing on the paper that tells you a Devoid creature is colourless, or
-     * that a card with no mana cost at all is red.
+     * Type line, with the card's colour in front of it: "Blue Creature - Human
+     * Wizard".
+     *
+     * A thermal slip is monochrome, so nothing on the paper says what colour the
+     * card is, and Momir hands you a token *copy* - colour is what decides
+     * whether it can be targeted. It goes in the type line because that is where
+     * a player already reads it and where it costs no extra rows: it used to be
+     * its own 19 px line under the type line, 25 dots that no card could spare.
      */
-    val subline: String,
     val typeLine: String,
     val powerToughness: String?,
     /**
@@ -49,10 +52,11 @@ data class SlipContent(
          * Always WUBRG order, never the order the letters happened to arrive in -
          * that is the order players say a colour pair in.
          *
-         * Four and five colour cards fall back to letters. "White / Blue / Black
-         * / Red / Green" is thirty-five characters that would push the type line
-         * onto a second row, and any player who has a five-colour creature in
-         * front of them can read WUBRG.
+         * Four and five colour cards fall back to letters, because "White / Blue
+         * / Black / Red / Green" is thirty-five characters, and any player who
+         * has a five-colour creature in front of them can read WUBRG.
+         *
+         * This is the on-screen form. The slip uses [colorAdjective].
          */
         fun colorLabel(symbols: String): String {
             val ordered = WUBRG.filter { symbols.contains(it) }
@@ -64,14 +68,39 @@ data class SlipContent(
         }
 
         /**
+         * The same colours as a word you can put in front of a noun: "Blue",
+         * "White-Black", "Colorless", "WUBRG".
+         *
+         * Hyphenated rather than slashed for two and three colours, because
+         * "White-Black Creature - Vampire" is the phrase a player says out loud
+         * and "White / Black Creature" is a database field.
+         */
+        fun colorAdjective(symbols: String): String {
+            val ordered = WUBRG.filter { symbols.contains(it) }
+            return when {
+                ordered.isEmpty() -> "Colorless"
+                ordered.length <= 3 -> ordered.map { COLOR_NAMES.getValue(it) }.joinToString("-")
+                // Four and five colours as letters, unspaced: at that point the
+                // adjective is longer than the type it qualifies.
+                else -> ordered
+            }
+        }
+
+        /** "Blue" + "Creature - Bird" -> "Blue Creature - Bird". */
+        private fun coloured(symbols: String, typeLine: String): String {
+            val adjective = colorAdjective(symbols)
+            return if (typeLine.isBlank()) adjective else "$adjective $typeLine"
+        }
+
+        /**
          * "https://scryfall.com/card/mh1/57/windreaver" -> ".../card/mh1/57"
          *
          * The name slug is decoration - Scryfall resolves set plus collector
          * number on its own. Dropping it takes a typical card URL from 44 bytes
          * to 32, which is the difference between a version 4 QR (33 modules) and
-         * a version 3 one (29). That is what lets the code sit in an artwork
-         * slip's header without squeezing the card name into a column so narrow
-         * that "Windreaver" breaks across two lines.
+         * a version 3 one (29). Four modules fewer is 16 dots of slip length in
+         * the header, and a smaller hole in the artwork when the code is set into
+         * its corner.
          */
         fun shortenScryfallUri(uri: String): String {
             val marker = "/card/"
@@ -82,35 +111,25 @@ data class SlipContent(
             return uri.substring(0, at + marker.length) + parts[0] + "/" + parts[1]
         }
 
-        fun of(card: Card): SlipContent {
-            val badge = card.manaValue.toString()
-            // {5} next to a badge that already says 5 is noise. Only a cost with
-            // colour in it tells you something the mana value does not.
-            val cost = card.plainManaCost.takeIf { it != badge }.orEmpty()
-            val subline = listOf(cost, colorLabel(card.colorIdentity))
-                .filter { it.isNotEmpty() }
-                .joinToString(SEPARATOR)
-
-            return SlipContent(
-                title = card.name,
-                badge = badge,
-                subline = subline,
-                typeLine = card.typeLine,
-                powerToughness = card.powerToughness,
-                loyalty = card.loyalty,
-                rulesText = card.oracleText,
-                linkUri = shortenScryfallUri(card.scryfallUri),
-                artOffset = card.artOffset,
-                artLength = card.artLength,
-                artHeight = card.artHeight,
-            )
-        }
+        fun of(card: Card) = SlipContent(
+            title = card.name,
+            badge = card.manaValue.toString(),
+            typeLine = coloured(card.colorIdentity, card.typeLine),
+            powerToughness = card.powerToughness,
+            loyalty = card.loyalty,
+            rulesText = card.oracleText,
+            linkUri = shortenScryfallUri(card.scryfallUri),
+            artOffset = card.artOffset,
+            artLength = card.artLength,
+            artHeight = card.artHeight,
+        )
 
         fun of(token: Token) = SlipContent(
             title = token.name,
             badge = null,
-            subline = "TOKEN" + SEPARATOR + colorLabel(token.colors),
-            typeLine = token.typeLine,
+            // Scryfall's token type lines already start with "Token", so the
+            // slip says "Black Token Creature - Zombie" without being told to.
+            typeLine = coloured(token.colors, token.typeLine),
             powerToughness = token.powerToughness,
             loyalty = null,
             rulesText = token.oracleText,
@@ -119,7 +138,5 @@ data class SlipContent(
             artLength = token.artLength,
             artHeight = token.artHeight,
         )
-
-        private const val SEPARATOR = "  ·  "
     }
 }

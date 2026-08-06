@@ -36,6 +36,16 @@ class SunmiPrinter(private val context: Context) {
 
     val isConnected: Boolean get() = service != null
 
+    /**
+     * Told whenever the binding comes or goes, on the main thread.
+     *
+     * The service can die under a running app - it is a separate process, and on
+     * a V2 it is restarted by anything that touches the printer from outside.
+     * Until something listened to this, the first anyone knew of it was a press
+     * that produced no paper.
+     */
+    var onStateChanged: ((connected: Boolean) -> Unit)? = null
+
     private val connection = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName?, binder: IBinder?) {
             service = woyou.aidlservice.jiuiv5.IWoyouService.Stub.asInterface(binder)
@@ -43,12 +53,14 @@ class SunmiPrinter(private val context: Context) {
             Log.i(TAG, "Printer service connected")
             pendingConnect?.let { if (it.isActive) it.resume(true) }
             pendingConnect = null
+            onStateChanged?.invoke(true)
         }
 
         override fun onServiceDisconnected(name: ComponentName?) {
             Log.w(TAG, "Printer service disconnected")
             service = null
             binding.set(false)
+            onStateChanged?.invoke(false)
         }
     }
 

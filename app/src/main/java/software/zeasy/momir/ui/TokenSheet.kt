@@ -5,6 +5,7 @@ import android.app.Dialog
 import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.GradientDrawable
+import android.view.Gravity
 import android.view.HapticFeedbackConstants
 import android.view.View
 import android.view.ViewGroup
@@ -64,8 +65,10 @@ class TokenSheet(
 
         dialog.window?.apply {
             setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
-            val width = (activity.resources.displayMetrics.widthPixels * 0.92f).toInt()
-            setLayout(width, ViewGroup.LayoutParams.WRAP_CONTENT)
+            // Full width, on the bottom edge. A sheet that floats in the middle
+            // of the screen is a dialog wearing a sheet's clothes.
+            setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
+            setGravity(Gravity.BOTTOM)
         }
         dialog.show()
     }

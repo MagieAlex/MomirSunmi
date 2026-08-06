@@ -30,12 +30,10 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginEnd="12dp"
-        android:fontFamily="serif"
+        style="@style/TextAppearance.Momir.CardName"
         android:minWidth="34dp"
         android:gravity="center"
         android:textColor="@color/accent_soft"
-        android:textSize="16sp"
-        android:textStyle="bold"
         tools:text="2/2" />
 
     <LinearLayout
@@ -51,17 +49,15 @@
             android:layout_height="wrap_content"
             android:ellipsize="end"
             android:maxLines="1"
-            android:textSize="16sp"
             tools:text="Zombie" />
 
         <TextView
             android:id="@+id/tokenType"
+            style="@style/TextAppearance.Momir.Caption"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:ellipsize="end"
             android:maxLines="1"
-            android:textColor="@color/text_secondary"
-            android:textSize="12sp"
             tools:text="Token Creature — Zombie · Black" />
     </LinearLayout>
 
@@ -71,10 +67,9 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginStart="8dp"
+        style="@style/TextAppearance.Momir.CardName"
         android:text="@string/tokens_selected_mark"
         android:textColor="@color/accent"
-        android:textSize="16sp"
-        android:textStyle="bold"
         android:visibility="invisible" />
 
 </LinearLayout>

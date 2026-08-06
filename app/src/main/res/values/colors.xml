@@ -28,6 +28,8 @@
     <color name="accent_soft">#EBD9A6</color>
     <color name="accent_dim">#6E5C31</color>
     <color name="accent_ghost">#221C10</color>
+    <!-- Type on a brass plate: the plate's own colour taken down to ink. -->
+    <color name="on_accent">#231B08</color>
 
     <color name="danger">#D9584B</color>
     <color name="success">#4ADE80</color>

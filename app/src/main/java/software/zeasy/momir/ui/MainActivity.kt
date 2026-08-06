@@ -13,7 +13,6 @@ import android.view.animation.DecelerateInterpolator
 import android.view.animation.LinearInterpolator
 import android.widget.SeekBar
 import android.widget.TextView
-import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
@@ -127,11 +126,16 @@ class MainActivity : AppCompatActivity() {
         binding.scanButton.setOnClickListener { startScan() }
         binding.resultTokens.setOnClickListener { lastCard?.let { showTokens(it, fromScan = false) } }
 
+        printer.onStateChanged = { connected -> showPrinterState(connected) }
+        showPrinterState(printer.isConnected)
+
         lifecycleScope.launch {
             withContext(Dispatchers.IO) {
                 if (repository.open()) artPack.open()
             }
             refreshCorpus()
+            // The binding attempt itself reports through onStateChanged; this
+            // only has to survive it failing, which leaves the lamp red.
             printer.connect()
         }
     }
@@ -160,6 +164,7 @@ class MainActivity : AppCompatActivity() {
         super.onDestroy()
         resultHandler.removeCallbacks(hideResult)
         spinSyncButton(false)
+        printer.onStateChanged = null
         printer.disconnect()
         artPack.close()
         repository.close()
@@ -320,14 +325,22 @@ class MainActivity : AppCompatActivity() {
             if (!printerReady()) {
                 binding.printButton.isBusy = false
                 binding.printButton.flash(ContextCompat.getColor(this@MainActivity, R.color.danger))
-                toast(getString(R.string.printer_not_connected))
+                showNotice(
+                    getString(R.string.printer_not_connected),
+                    getString(R.string.printer_not_connected_detail),
+                    danger = true,
+                )
                 return@launch
             }
 
             val card = withContext(Dispatchers.IO) { repository.randomCard(manaValue, category) }
             if (card == null) {
                 binding.printButton.isBusy = false
-                toast(getString(category.noneAtManaValue, manaValue))
+                showNotice(
+                    getString(R.string.nothing_to_roll),
+                    getString(category.noneAtManaValue, manaValue),
+                    danger = true,
+                )
                 return@launch
             }
 
@@ -370,7 +383,11 @@ class MainActivity : AppCompatActivity() {
      */
     private suspend fun printSlip(content: SlipContent, times: Int = 1): Raster? {
         if (!printerReady()) {
-            toast(getString(R.string.printer_not_connected))
+            showNotice(
+                getString(R.string.printer_not_connected),
+                getString(R.string.printer_not_connected_detail),
+                danger = true,
+            )
             return null
         }
 
@@ -399,7 +416,7 @@ class MainActivity : AppCompatActivity() {
         // reason to push four more rasters at a printer that cannot take them.
         var failure: String? = null
         for (copy in 0 until settings.copies * times.coerceAtLeast(1)) {
-            val result = printer.print(raster, settings.tearFeedDots)
+            val result = printer.print(raster, settings.printFeedDots)
             if (result is PrintResult.Failure) {
                 failure = result.message
                 break
@@ -407,7 +424,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         failure?.let {
-            toast(getString(R.string.print_failed, it))
+            showNotice(getString(R.string.print_failed), it, danger = true)
             return null
         }
         return raster
@@ -424,7 +441,11 @@ class MainActivity : AppCompatActivity() {
         lifecycleScope.launch {
             val card = withContext(Dispatchers.IO) { repository.randomCard(manaValue, category) }
             if (card == null) {
-                toast(getString(category.noneAtManaValue, manaValue))
+                showNotice(
+                    getString(R.string.nothing_to_roll),
+                    getString(category.noneAtManaValue, manaValue),
+                    danger = true,
+                )
                 return@launch
             }
 
@@ -440,36 +461,47 @@ class MainActivity : AppCompatActivity() {
                 } else null
                 val effectiveMode = if (mode == PrintMode.ARTWORK && art == null) PrintMode.QR else mode
 
-                val bitmap = renderer.compose(
-                    content, effectiveMode, art, content.artHeight ?: 0, settings.contentBudgetDots,
+                // The whole torn-off slip, margins and all, rather than the
+                // layout on its own: a preview that leaves out the 12 mm of
+                // white above the card name is not a preview of the object.
+                val bitmap = renderer.composePaper(
+                    content, effectiveMode, art, content.artHeight ?: 0,
+                    budgetDots = settings.contentBudgetDots,
+                    headMarginDots = settings.headMarginDots,
+                    bottomMarginDots = settings.bottomMarginDots,
                 )
                 java.io.FileOutputStream(java.io.File(getExternalFilesDir(null), "preview.png")).use { out ->
                     bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, out)
                 }
-                val h = bitmap.height
                 bitmap.recycle()
-                h
+                settings.contentBudgetDots
             }
 
-            showResult(card, height)
-            toast(getString(R.string.preview_written, card.name))
+            // The panel already names the card and reports its length; all
+            // that is left to say is that no paper moved.
+            showResult(card, height, note = getString(R.string.preview_title))
         }
     }
 
-    /** [contentDots] is null until the slip has actually been rendered. */
-    private suspend fun showResult(card: Card, contentDots: Int?) {
+    /**
+     * [contentDots] is null until the slip has actually been rendered, and
+     * [note] is what the panel says instead of nothing when no paper moved.
+     */
+    private suspend fun showResult(card: Card, contentDots: Int?, note: String? = null) {
         if (card.oracleId != lastCard?.oracleId) {
             lastTokens = withContext(Dispatchers.IO) { repository.tokensFor(card.oracleId) }
         }
         lastCard = card
         binding.resultName.text = card.name
+        binding.resultDetail.visibility = View.VISIBLE
         binding.resultDetail.text = listOfNotNull(
+            note,
             card.typeLine.takeIf { it.isNotBlank() },
             // Labelled, for the same reason it is labelled on the slip: a bare 4
             // on a planeswalker would read as half a power and toughness.
             card.powerToughness ?: card.loyalty?.let { getString(R.string.result_loyalty, it) },
             contentDots?.let {
-                String.format(Locale.US, "%.0f mm", it / EscPos.DOTS_PER_MM + settings.tearFeedMm)
+                String.format(Locale.US, "%.0f mm", settings.printedLengthMm(it))
             },
         ).joinToString(" · ")
         binding.resultStripe.background = stripeFor(card.colorIdentity)
@@ -538,7 +570,7 @@ class MainActivity : AppCompatActivity() {
         // about the card the panel is currently showing.
         val tokens = lastTokens
         if (tokens.isEmpty()) {
-            toast(getString(R.string.tokens_none, card.name))
+            showNotice(getString(R.string.no_tokens), getString(R.string.tokens_none, card.name))
             return
         }
 
@@ -559,7 +591,8 @@ class MainActivity : AppCompatActivity() {
     /** Prints [each] copies of every token in [tokens]. */
     private fun printTokens(tokens: List<Token>, each: Int) {
         binding.printButton.isBusy = true
-        toast(resources.getQuantityString(R.plurals.tokens_queued, tokens.size * each, tokens.size * each))
+        val slips = tokens.size * each
+        showNotice(resources.getQuantityString(R.plurals.tokens_queued, slips, slips))
 
         lifecycleScope.launch {
             for (token in tokens) {
@@ -591,14 +624,18 @@ class MainActivity : AppCompatActivity() {
 
         val text = data?.getStringExtra(ScannerActivity.EXTRA_RESULT) ?: return
         if (!text.contains("scryfall.com")) {
-            toast(getString(R.string.scan_not_a_card, text.take(60)))
+            showNotice(
+                getString(R.string.scan_failed),
+                getString(R.string.scan_not_a_card, text.take(60)),
+                danger = true,
+            )
             return
         }
 
         lifecycleScope.launch {
             val card = withContext(Dispatchers.IO) { repository.cardByScryfallUri(text) }
             if (card == null) {
-                toast(getString(R.string.scan_not_found))
+                showNotice(getString(R.string.scan_failed), getString(R.string.scan_not_found), danger = true)
                 return@launch
             }
 
@@ -628,13 +665,16 @@ class MainActivity : AppCompatActivity() {
 
         view.copiesSeek.progress = settings.copies - 1
         view.slipSeek.progress = (settings.slipLengthMm - SLIP_MIN_MM).toInt()
-        view.feedSeek.progress = settings.tearFeedMm.toInt()
+        view.feedSeek.progress = settings.tearGapMm.toInt()
+        view.bottomMarginSeek.progress = settings.bottomMarginMm.toInt()
 
         fun refreshLabels() {
             view.copiesLabel.text = "${getString(R.string.settings_copies)}: ${view.copiesSeek.progress + 1}"
             view.slipLabel.text =
                 "${getString(R.string.settings_slip_length)}: ${view.slipSeek.progress + SLIP_MIN_MM.toInt()} mm"
-            view.feedLabel.text = "${getString(R.string.settings_tear_feed)}: ${view.feedSeek.progress} mm"
+            view.feedLabel.text = "${getString(R.string.settings_tear_gap)}: ${view.feedSeek.progress} mm"
+            view.bottomMarginLabel.text =
+                "${getString(R.string.settings_bottom_margin)}: ${view.bottomMarginSeek.progress} mm"
         }
         refreshLabels()
 
@@ -646,6 +686,7 @@ class MainActivity : AppCompatActivity() {
         view.copiesSeek.setOnSeekBarChangeListener(watcher)
         view.slipSeek.setOnSeekBarChangeListener(watcher)
         view.feedSeek.setOnSeekBarChangeListener(watcher)
+        view.bottomMarginSeek.setOnSeekBarChangeListener(watcher)
 
         view.diagnostics.text = buildDiagnostics()
         view.testPrintButton.setOnClickListener { printTestPattern() }
@@ -657,7 +698,8 @@ class MainActivity : AppCompatActivity() {
             .setPositiveButton(R.string.close) { _, _ ->
                 settings.copies = view.copiesSeek.progress + 1
                 settings.slipLengthMm = view.slipSeek.progress + SLIP_MIN_MM
-                settings.tearFeedMm = view.feedSeek.progress.toFloat()
+                settings.tearGapMm = view.feedSeek.progress.toFloat()
+                settings.bottomMarginMm = view.bottomMarginSeek.progress.toFloat()
             }
             .show()
     }
@@ -685,19 +727,23 @@ class MainActivity : AppCompatActivity() {
             val content = SlipContent(
                 title = "Test Slip",
                 badge = "8",
-                subline = "CALIBRATION",
-                typeLine = "Tear here and measure",
+                typeLine = "Calibration — Tear here and measure",
                 powerToughness = null,
                 loyalty = null,
-                rulesText = "Tear this off and hold it against a ruler. Adjust \"feed after " +
-                    "printing\" until the measured length matches what the app reports, then " +
-                    "check that it slides into a sleeve. A Magic card is 88 mm long.",
+                rulesText = "Tear this off and hold it against a ruler. The white above this " +
+                    "text is the gap between the print head and the tear bar; set \"head to " +
+                    "tear bar\" to what you measure there.\nThen check the whole slip against " +
+                    "the length the app reports, and that it slides into a sleeve. A Magic " +
+                    "card is 88 mm long.",
                 linkUri = "https://scryfall.com/card/test/1/test-slip",
                 artOffset = null, artLength = null, artHeight = null,
             )
             val raster = printSlip(content)
             if (raster != null) {
-                toast(getString(R.string.slip_length_toast, raster.heightMm + settings.tearFeedMm))
+                showNotice(
+                    getString(R.string.settings_test_print),
+                    getString(R.string.slip_length_toast, settings.printedLengthMm(raster.height)),
+                )
             }
         }
     }
@@ -708,11 +754,11 @@ class MainActivity : AppCompatActivity() {
 
     private fun startResync() {
         if (SyncService.lastStatus is SyncService.Status.Running) {
-            toast(getString(R.string.sync_already_running))
+            showNotice(getString(R.string.sync_title), getString(R.string.sync_already_running))
             return
         }
         SyncService.start(this)
-        toast(getString(R.string.sync_running, "starting"))
+        showNotice(getString(R.string.sync_title), getString(R.string.sync_starting))
     }
 
     /**
@@ -745,9 +791,12 @@ class MainActivity : AppCompatActivity() {
                 spinSyncButton(false)
                 val outcome = status.outcome
                 if (outcome.error != null) {
-                    toast(getString(R.string.sync_failed, outcome.error))
+                    showNotice(getString(R.string.sync_title), outcome.error, danger = true)
                 } else {
-                    toast(getString(R.string.sync_done, outcome.newCards, outcome.newArtwork))
+                    showNotice(
+                        getString(R.string.sync_title),
+                        getString(R.string.sync_done, outcome.newCards, outcome.newArtwork),
+                    )
                 }
                 lifecycleScope.launch {
                     withContext(Dispatchers.IO) {
@@ -764,8 +813,36 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun toast(message: String) {
-        Toast.makeText(this, message, Toast.LENGTH_LONG).show()
+    /**
+     * Says something on the result panel instead of over it.
+     *
+     * Every failure this app can have used to arrive as a stock Android toast:
+     * a grey lozenge in the system font, floating over a screen that had just
+     * been designed as a card. The panel is already anchored, already animated
+     * and already retires itself, and a printer that is not connected is at
+     * least as much of a result as a creature that printed.
+     *
+     * [danger] swaps the colour-identity stripe for a solid red one, which is
+     * the same trick the panel plays with a card's colours.
+     */
+    private fun showNotice(title: String, detail: String? = null, danger: Boolean = false) {
+        binding.resultName.text = title
+        binding.resultDetail.text = detail.orEmpty()
+        binding.resultDetail.visibility = if (detail.isNullOrBlank()) View.GONE else View.VISIBLE
+        // The chip belongs to a card, and this is not one.
+        binding.resultTokens.visibility = View.GONE
+        binding.resultStripe.background = ManaColors.stripe(
+            listOf(ContextCompat.getColor(this, if (danger) R.color.danger else R.color.accent)),
+            resources.displayMetrics.density,
+        )
+        revealResult(hasTokens = false)
+    }
+
+    /** The lamp beside the wordmark. */
+    private fun showPrinterState(connected: Boolean) {
+        binding.printerDot.background.setTint(
+            ContextCompat.getColor(this, if (connected) R.color.success else R.color.danger)
+        )
     }
 
     companion object {

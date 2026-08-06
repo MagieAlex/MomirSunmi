@@ -32,16 +32,13 @@
             android:id="@+id/sourceChip"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            style="@style/TextAppearance.Momir.Label"
             android:background="@drawable/bg_chip"
-            android:letterSpacing="0.16"
             android:paddingStart="9dp"
             android:paddingEnd="9dp"
             android:paddingTop="4dp"
             android:paddingBottom="4dp"
-            android:textAllCaps="true"
             android:textColor="@color/accent"
-            android:textSize="10sp"
-            android:textStyle="bold"
             tools:text="Scanned slip" />
 
         <View
@@ -52,13 +49,12 @@
 
     <TextView
         android:id="@+id/sheetTitle"
-        style="@style/TextAppearance.Momir.CardName"
+        style="@style/TextAppearance.Momir.Title"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="10dp"
         android:ellipsize="end"
         android:maxLines="2"
-        android:textSize="22sp"
         tools:text="Thragtusk" />
 
     <TextView
@@ -117,6 +113,7 @@
 
             <TextView
                 android:id="@+id/quantityMinus"
+                style="@style/TextAppearance.Momir.Title"
                 android:layout_width="42dp"
                 android:layout_height="match_parent"
                 android:background="@drawable/bg_stepper_key"
@@ -124,23 +121,19 @@
                 android:focusable="true"
                 android:gravity="center"
                 android:text="@string/tokens_minus"
-                android:textColor="@color/accent"
-                android:textSize="20sp"
-                android:textStyle="bold" />
+                android:textColor="@color/accent" />
 
             <TextView
                 android:id="@+id/quantityValue"
                 android:layout_width="46dp"
                 android:layout_height="match_parent"
-                android:fontFamily="serif"
+                style="@style/TextAppearance.Momir.Title"
                 android:gravity="center"
-                android:textColor="@color/text_primary"
-                android:textSize="18sp"
-                android:textStyle="bold"
                 tools:text="3" />
 
             <TextView
                 android:id="@+id/quantityPlus"
+                style="@style/TextAppearance.Momir.Title"
                 android:layout_width="42dp"
                 android:layout_height="match_parent"
                 android:background="@drawable/bg_stepper_key"
@@ -148,9 +141,7 @@
                 android:focusable="true"
                 android:gravity="center"
                 android:text="@string/tokens_plus"
-                android:textColor="@color/accent"
-                android:textSize="20sp"
-                android:textStyle="bold" />
+                android:textColor="@color/accent" />
         </LinearLayout>
     </LinearLayout>
 
@@ -158,6 +149,7 @@
 
     <TextView
         android:id="@+id/printButton"
+        style="@style/TextAppearance.Momir.Action"
         android:layout_width="match_parent"
         android:layout_height="52dp"
         android:layout_marginTop="16dp"
@@ -165,11 +157,7 @@
         android:clickable="true"
         android:focusable="true"
         android:gravity="center"
-        android:letterSpacing="0.12"
-        android:textAllCaps="true"
-        android:textColor="#231B08"
-        android:textSize="14sp"
-        android:textStyle="bold"
+        android:textColor="@color/on_accent"
         tools:text="Print 3 × Zombie" />
 
     <LinearLayout
@@ -180,6 +168,7 @@
 
         <TextView
             android:id="@+id/printEachButton"
+            style="@style/TextAppearance.Momir.Action"
             android:layout_width="0dp"
             android:layout_height="46dp"
             android:layout_marginEnd="10dp"
@@ -188,15 +177,11 @@
             android:clickable="true"
             android:focusable="true"
             android:gravity="center"
-            android:letterSpacing="0.1"
-            android:text="@string/tokens_print_each"
-            android:textAllCaps="true"
-            android:textColor="@color/accent"
-            android:textSize="12sp"
-            android:textStyle="bold" />
+            android:text="@string/tokens_print_each" />
 
         <TextView
             android:id="@+id/closeButton"
+            style="@style/TextAppearance.Momir.Action"
             android:layout_width="0dp"
             android:layout_height="46dp"
             android:layout_weight="1"
@@ -204,12 +189,8 @@
             android:clickable="true"
             android:focusable="true"
             android:gravity="center"
-            android:letterSpacing="0.1"
             android:text="@string/close"
-            android:textAllCaps="true"
-            android:textColor="@color/text_secondary"
-            android:textSize="12sp"
-            android:textStyle="bold" />
+            android:textColor="@color/text_secondary" />
     </LinearLayout>
 
 </LinearLayout>

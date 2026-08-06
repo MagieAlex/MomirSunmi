@@ -17,14 +17,11 @@ Output lands in `tools/momirdeck/out/`:
 
 | File | Size | Contents |
 |---|---|---|
-| `momir.db` | ~19 MB | ~30,300 cards, 532 tokens, 2,060 creature→token links |
-| `art.pack` | ~410 MB | ~30,800 pre-dithered 1-bit artworks |
+| `momir.db` | 19.8 MB | 30,423 cards, 733 tokens, 3,796 card→token links |
+| `art.pack` | 407 MB | 31,156 pre-dithered 1-bit artworks |
 
-Those are **projections**, not measurements — see [How big it
-gets](#how-big-it-gets). The last corpus actually built, before the roll widened
-past creatures, was 11 MB of `momir.db` (17,497 creatures, of which 16,763 carry
-a colour identity and 734 are colourless) and 238 MB of `art.pack` holding
-18,029 artworks.
+Measured, on the corpus this documentation was written against: 30,423 cards, of
+which 28,117 carry a colour identity and 2,306 are colourless.
 
 ## Streaming, not loading
 
@@ -239,16 +236,16 @@ planeswalker there is, and half the enchantments worth rolling make something
 too. The token sheet is keyed on oracle id and never cared what type the card
 was, so widening this costs one condition and a few hundred extra rows.
 
-Measured while the corpus was still creatures only:
+Over the whole corpus:
 
 ```
-2,060 token references from 1,976 creatures (11.3 %)
-  979 distinct token printings referenced
-  532 distinct tokens after collapsing to Oracle identity
+3,796 token references from 3,615 cards (11.9 %)
+1,456 distinct token printings referenced
+  733 distinct tokens after collapsing to Oracle identity
 ```
 
-Expect both the reference count and the distinct-token count to rise on the next
-full build — planeswalkers alone are a few hundred references.
+Restricting that scan to creatures had cost nearly half the graph: 2,060
+references from 1,976 cards onto 532 tokens.
 
 The catch: `all_parts` references tokens by **printing id**, not Oracle id, so
 it cannot be joined against `oracle_cards` directly — that file holds a
@@ -276,8 +273,9 @@ Non-creature cards need nothing special here — every card object carries an
 `art_crop`, and `build-art` works off "has no artwork yet" rather than off a type.
 
 Rate limiting is a global 10 requests/second, which is what Scryfall asks for.
-17,497 images took about 29 minutes; the widened corpus is roughly 30,800 and
-should take a little under an hour from cold. Please do not raise it.
+The full 31,156 images take a little under an hour from cold — the creature-only
+17,230 took 29 minutes, and the 13,127 that widening the roll added took a
+further 22. Please do not raise it.
 
 ## The art pack format
 
@@ -298,41 +296,37 @@ dead space — cheaper than rewriting a 400 MB file for a few hundred rows.
 
 ## How big it gets
 
-Widening the roll past creatures roughly doubles both files, so it is worth
+Widening the roll past creatures very nearly doubles both files, so it is worth
 knowing what the device is in for. The V2 has about 1.4 GB free.
 
-Card counts are from Scryfall's search API (`unique=cards`, `legal:vintage`),
-scaled by the 0.55 % the front-face rule costs us against their count. They are
-**estimates**; `build-db` prints the real breakdown when you run it.
-
-| | Creatures only (measured) | All seven types (estimated) |
+| | Creatures only | All seven types |
 |---|---:|---:|
-| Cards | 17,497 | ~30,300 |
-| `momir.db` | 11 MB | ~19 MB |
-| Artworks in `art.pack` | 18,029 | ~30,800 |
-| `art.pack` | 238 MB | ~410 MB |
-| On the device | 249 MB | ~430 MB |
+| Cards | 17,497 | 30,423 |
+| `momir.db` | 11 MB | 19.8 MB |
+| Artworks in `art.pack` | 18,029 | 31,156 |
+| `art.pack` | 238 MB | 407 MB |
+| On the device | 249 MB | 427 MB |
 
 Per type, counting a card once for every bit it carries:
 
-| Type | Estimated rows |
+| Type | Rows |
 |---|---:|
-| Creature | ~17,500 |
-| Instant | ~3,690 |
-| Enchantment | ~3,590 |
-| Artifact | ~3,510 |
-| Sorcery | ~3,480 |
-| Planeswalker | ~290 |
-| Land | a few dozen |
+| Creature | 17,497 |
+| Instant | 3,620 |
+| Enchantment | 3,562 |
+| Artifact | 3,507 |
+| Sorcery | 3,385 |
+| Planeswalker | 287 |
 | Battle | 36 |
+| Land | 22 |
 
-The overlaps are large — some 1,230 artifact creatures and 310 enchantment
-creatures — which is why those columns add up to more than the corpus.
+The overlaps are large — 1,192 of those artifacts and 238 of those enchantments
+are also creatures — which is why the column adds up to more than the corpus.
 
-The extra ~12,800 cards are ~13.5 KB of dithered artwork each, so the pack grows
-by about 170 MB and the download by about twenty minutes. Both are one-offs: the
-pack is append-only, so an existing `art.pack` keeps everything it already has
-and only the new cards are fetched.
+The 12,926 cards widening added are ~13 KB of dithered artwork each, so the pack
+grew by 169 MB and the download by 22 minutes. Both are one-offs: the pack is
+append-only, so an existing `art.pack` keeps everything it already has and only
+the new cards are fetched.
 
 ## On-device resync
 

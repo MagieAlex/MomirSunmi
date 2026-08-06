@@ -26,10 +26,20 @@ import android.view.animation.LinearInterpolator
  * frame. On a 2014-era armeabi-v7a chip that is a slideshow.
  *
  * Everything here is built from gradients and stacked translucent fills, which
- * the GPU handles natively. The edge halo is fourteen rounded-rect strokes of
- * growing width and falling alpha; the travelling band is a stack of thin rects
- * whose alpha follows a bell curve. Both read as soft light and neither costs
- * anything.
+ * the GPU handles natively. The travelling band is a stack of thin rects whose
+ * alpha follows a bell curve; the halo is four banks of strips, one per screen
+ * edge. Both read as soft light and neither costs anything.
+ *
+ * ## Why the top edge is the bright one
+ *
+ * The halo used to be fourteen rounded-rect strokes around the whole perimeter.
+ * Stacked strokes are brightest where they meet - the corners - so the effect
+ * pointed at the four places nothing happens, on a device whose paper comes out
+ * of the top. Now the top bank is the deepest and brightest, the sides are held
+ * back and inset so they do not pile up in the corners, and the foot is barely
+ * there. It costs about a sixth of the fill the strokes did, because a stroke
+ * 40 dp wide is drawn all the way around a 720 x 1440 screen and most of that
+ * was over the middle of nothing.
  *
  * The view sits on top of the whole layout but is not clickable, so touches fall
  * through to the dial and the button underneath.
@@ -59,13 +69,16 @@ class GlowOverlay @JvmOverloads constructor(
      * print - on a device with 340 MB free, and in a class whose whole argument
      * is that it allocates nothing while animating.
      */
-    private var haloShader: SweepGradient? = null
+    private var sideShader: LinearGradient? = null
     private var bandShader: LinearGradient? = null
 
-    private val cornerRadius = dp(2f)
-    private val haloLayers = 14
     private val bandHalfHeight = dp(90f)
     private val bandStrips = 26
+
+    /** How far each bank of light reaches in from its edge. */
+    private val topDepth = dp(76f)
+    private val sideDepth = dp(40f)
+    private val bottomDepth = dp(26f)
 
     val isPlaying: Boolean get() = animator?.isRunning == true
 
@@ -98,24 +111,27 @@ class GlowOverlay @JvmOverloads constructor(
         animator?.cancel()
         animator = null
         progress = 0f
-        haloShader = null
+        sideShader = null
         bandShader = null
         invalidate()
     }
 
     /**
      * A single colour paints flat and needs no shader at all; two or more get a
-     * sweep around the perimeter and a ramp across the band.
+     * ramp along whichever edge is being drawn, so a Golgari creature is black
+     * and green everywhere rather than black on one side.
      */
     private fun buildShaders() {
         if (colors.size < 2 || width == 0 || height == 0) {
-            haloShader = null
+            sideShader = null
             bandShader = null
             return
         }
-        haloShader = SweepGradient(width / 2f, height / 2f, closedRing(colors), null)
         bandShader = LinearGradient(
             0f, 0f, width.toFloat(), 0f, colors, null, Shader.TileMode.CLAMP,
+        )
+        sideShader = LinearGradient(
+            0f, 0f, 0f, height.toFloat(), colors, null, Shader.TileMode.CLAMP,
         )
     }
 
@@ -175,29 +191,53 @@ class GlowOverlay @JvmOverloads constructor(
     // Drawing
     // ------------------------------------------------------------------------
 
+    /**
+     * Four banks of light, weighted towards the slot.
+     *
+     * The sides are inset past the top and bottom banks rather than running the
+     * full height: where two banks overlap their alphas compose, and that is
+     * precisely how the old version ended up brightest in the corners.
+     */
     private fun drawHalo(canvas: Canvas, intensity: Float) {
         if (intensity <= 0f) return
+        paint.style = Paint.Style.FILL
 
-        paint.style = Paint.Style.STROKE
-        // Sweep, so a two- or five-colour identity runs its colours around the
-        // perimeter instead of picking one.
-        paint.shader = haloShader
-        if (haloShader == null) paint.color = colors[0]
+        drawBank(canvas, Edge.TOP, intensity, topDepth)
+        drawBank(canvas, Edge.LEFT, intensity * SIDE_WEIGHT, sideDepth)
+        drawBank(canvas, Edge.RIGHT, intensity * SIDE_WEIGHT, sideDepth)
+        drawBank(canvas, Edge.BOTTOM, intensity * FOOT_WEIGHT, bottomDepth)
+    }
 
-        for (layer in 0 until haloLayers) {
-            val t = layer / haloLayers.toFloat()
-            val strokeWidth = dp(2f) + t * dp(38f)
-            // Cubed falloff. Squared still stacked into something that read as a
-            // solid frame and covered the header text at the edges; cubing keeps
-            // the bright part hugging the very edge and lets it die away fast.
-            val fade = 1f - t
-            val alpha = intensity * fade * fade * fade * MAX_HALO_ALPHA
-            paint.strokeWidth = strokeWidth
+    private enum class Edge { TOP, BOTTOM, LEFT, RIGHT }
+
+    private fun drawBank(canvas: Canvas, edge: Edge, intensity: Float, depth: Float) {
+        if (intensity <= 0f || width == 0 || height == 0) return
+
+        val along = edge == Edge.TOP || edge == Edge.BOTTOM
+        paint.shader = if (along) bandShader else sideShader
+        if (paint.shader == null) paint.color = colors[0]
+
+        val step = depth / HALO_STRIPS
+        val from = if (along) 0f else topDepth
+        val to = if (along) width.toFloat() else height - bottomDepth
+
+        for (strip in 0 until HALO_STRIPS) {
+            val t = (strip + 0.5f) / HALO_STRIPS
+            // Squared falloff: bright against the edge, gone a thumb's width in.
+            val fade = (1f - t) * (1f - t)
+            val alpha = intensity * fade * MAX_HALO_ALPHA
+            if (alpha <= 0.004f) continue
             paint.alpha = (alpha * 255).toInt().coerceIn(0, 255)
 
-            val inset = strokeWidth / 2f
-            borderRect.set(inset, inset, width - inset, height - inset)
-            canvas.drawRoundRect(borderRect, cornerRadius, cornerRadius, paint)
+            val near = strip * step
+            val far = near + step + 1f
+            when (edge) {
+                Edge.TOP -> borderRect.set(from, near, to, far)
+                Edge.BOTTOM -> borderRect.set(from, height - far, to, height - near)
+                Edge.LEFT -> borderRect.set(near, from, far, to)
+                Edge.RIGHT -> borderRect.set(width - far, from, width - near, to)
+            }
+            canvas.drawRect(borderRect, paint)
         }
         paint.shader = null
     }
@@ -227,14 +267,6 @@ class GlowOverlay @JvmOverloads constructor(
         paint.shader = null
     }
 
-    /** SweepGradient needs the first colour repeated at the end, or the ring has a seam. */
-    private fun closedRing(source: IntArray): IntArray {
-        val ring = IntArray(source.size + 1)
-        System.arraycopy(source, 0, ring, 0, source.size)
-        ring[source.size] = source[0]
-        return ring
-    }
-
     private fun dp(value: Float) = value * resources.displayMetrics.density
 
     companion object {
@@ -248,6 +280,12 @@ class GlowOverlay @JvmOverloads constructor(
 
         /** Kept well below 1: this sits over the UI and has to stay readable. */
         private const val MAX_HALO_ALPHA = 0.62f
+
+        private const val HALO_STRIPS = 8
+
+        /** The sides acknowledge the print; the foot barely does. */
+        private const val SIDE_WEIGHT = 0.5f
+        private const val FOOT_WEIGHT = 0.28f
 
         /**
          * The band is the part that carries the meaning - it is the card moving

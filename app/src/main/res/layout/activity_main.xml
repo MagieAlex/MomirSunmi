@@ -12,19 +12,32 @@
 
     <TextView
         android:id="@+id/title"
+        style="@style/TextAppearance.Momir.Display"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginStart="20dp"
         android:layout_marginTop="14dp"
-        android:fontFamily="serif"
-        android:letterSpacing="0.3"
         android:text="@string/app_name"
-        android:textAllCaps="true"
-        android:textColor="@color/accent"
-        android:textSize="21sp"
-        android:textStyle="bold"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
+
+    <!--
+      The printer's state, as a lamp beside the wordmark.
+
+      The AIDL service can go away underneath a running app, and until this was
+      here the first anyone knew of it was a print that did nothing. It is 8 dp
+      because it is not news most of the time.
+    -->
+    <View
+        android:id="@+id/printerDot"
+        android:layout_width="8dp"
+        android:layout_height="8dp"
+        android:layout_marginStart="10dp"
+        android:background="@drawable/bg_dot"
+        android:contentDescription="@string/printer_state"
+        app:layout_constraintBottom_toBottomOf="@id/title"
+        app:layout_constraintStart_toEndOf="@id/title"
+        app:layout_constraintTop_toTopOf="@id/title" />
 
     <ImageButton
         android:id="@+id/scanButton"
@@ -185,36 +198,30 @@
                 android:layout_height="wrap_content"
                 android:ellipsize="end"
                 android:maxLines="1"
-                android:textSize="17sp"
                 tools:text="Thragtusk" />
 
             <TextView
                 android:id="@+id/resultDetail"
+                style="@style/TextAppearance.Momir.Caption"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="2dp"
                 android:ellipsize="end"
-                android:maxLines="1"
-                android:textColor="@color/text_secondary"
-                android:textSize="12sp"
-                tools:text="Creature — Beast · 5/3 · 64 mm" />
+                android:maxLines="2"
+                tools:text="Creature — Beast · 5/3 · 88 mm" />
         </LinearLayout>
 
         <TextView
             android:id="@+id/resultTokens"
+            style="@style/TextAppearance.Momir.Action"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginStart="10dp"
             android:background="@drawable/bg_chip"
-            android:letterSpacing="0.08"
             android:paddingStart="12dp"
             android:paddingEnd="12dp"
             android:paddingTop="8dp"
             android:paddingBottom="8dp"
-            android:textAllCaps="true"
-            android:textColor="@color/accent"
-            android:textSize="11sp"
-            android:textStyle="bold"
             android:visibility="gone"
             tools:text="2 tokens"
             tools:visibility="visible" />
@@ -236,20 +243,19 @@
         app:layout_constraintTop_toBottomOf="@id/categoryScroll">
 
         <TextView
-            style="@style/TextAppearance.Momir.CardName"
+            style="@style/TextAppearance.Momir.Title"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="@string/no_corpus_title" />
 
         <TextView
+            style="@style/TextAppearance.Momir.Caption"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="12dp"
             android:fontFamily="monospace"
             android:lineSpacingExtra="3dp"
-            android:text="@string/no_corpus_body"
-            android:textColor="@color/text_secondary"
-            android:textSize="13sp" />
+            android:text="@string/no_corpus_body" />
     </LinearLayout>
 
     <!--

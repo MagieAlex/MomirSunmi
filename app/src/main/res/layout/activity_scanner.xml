@@ -18,6 +18,7 @@
     <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        style="@style/TextAppearance.Momir.Body"
         android:layout_gravity="center_horizontal|top"
         android:layout_marginTop="64dp"
         android:gravity="center"
@@ -25,9 +26,7 @@
         android:paddingEnd="32dp"
         android:shadowColor="#000000"
         android:shadowRadius="6"
-        android:text="@string/scan_hint"
-        android:textColor="@color/text_primary"
-        android:textSize="15sp" />
+        android:text="@string/scan_hint" />
 
     <!--
       A TextView, for the reason documented in dialog_settings.xml: under a
@@ -37,6 +36,7 @@
     -->
     <TextView
         android:id="@+id/closeButton"
+        style="@style/TextAppearance.Momir.Action"
         android:layout_width="wrap_content"
         android:layout_height="46dp"
         android:layout_gravity="bottom|center_horizontal"
@@ -45,13 +45,9 @@
         android:clickable="true"
         android:focusable="true"
         android:gravity="center"
-        android:letterSpacing="0.1"
         android:paddingStart="28dp"
         android:paddingEnd="28dp"
         android:text="@string/close"
-        android:textAllCaps="true"
-        android:textColor="@color/text_primary"
-        android:textSize="12sp"
-        android:textStyle="bold" />
+        android:textColor="@color/text_primary" />
 
 </FrameLayout>

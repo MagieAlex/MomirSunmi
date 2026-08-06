@@ -16,21 +16,33 @@ Width is not a problem. The V2 prints 58 mm paper at 203 dpi with 384 printable
 dots, which is 48 mm — comfortably inside 63 mm.
 
 Length is the interesting one. At 8 dots/mm the whole slip is **704 dots**, and
-part of that is spent feeding the paper past the tear bar, which sits roughly
-12 mm above the print head:
+two margins come out of that before the layout gets any:
 
 ```
 88 mm slip length           704 dots
-− 12 mm tear feed         −  96 dots
+− 12 mm head margin       −  96 dots   the head-to-tear-bar gap
+−  5 mm foot margin       −  40 dots
 ────────────────────────────────────
-  76 mm of layout           608 dots   ← every slip, exactly
+  71 mm of layout           568 dots   ← every slip, exactly
 ```
 
-Both numbers are settings, because the tear-bar distance varies between units
-and paper rolls. Settings → Test print produces a calibration slip: tear it off,
-measure it, adjust until the measured length matches what the app reports.
+The head margin is not a choice. The tear bar sits about 12 mm downstream of the
+print head, so when a slip starts printing there are already 96 dots of paper
+past the head — paper that has physically gone by and can never be printed on.
+It is the top of every slip whether anyone wants it there or not.
 
-So the renderer has two problems, not one: cards that want more than 608 dots,
+What *was* a choice, and the wrong one, was feeding exactly that distance
+afterwards. That tears the slip off flush with the last row: 12 mm of white above
+the card name and 0.75 mm under the rules text. Feeding **more** than the gap
+costs nothing but layout space, and the excess comes out as a foot margin. So
+the printer is fed 136 dots after the raster — 40 of foot margin, then the 96
+that carry the slip to the bar.
+
+Both numbers are settings, because the tear-bar distance varies between units and
+paper rolls. Settings → Test print produces a calibration slip: tear it off and
+measure the white band above the card name, which *is* the head-to-tear distance.
+
+So the renderer has two problems, not one: cards that want more than 568 dots,
 and cards that want less.
 
 ![Six slips, all exactly 88 mm](images/slips-uniform.png)
@@ -42,9 +54,10 @@ Leaving it blank at the bottom would read as a mistake rather than as layout, so
 the slack is spent instead:
 
 1. **The QR grows.** In QR mode the code is sized against what is actually left
-   after the text, up to 9 dots per module, where a 33-module symbol stops
-   fitting across 364 dots. A bigger code also scans better, so this is free in
-   both directions.
+   after the text, up to 6 dots per module. It used to go to 9 — 1.1 mm modules,
+   on a code a phone reads from 20 cm away, eating three fifths of a vanilla
+   slip. The ceiling is now the size that scans comfortably rather than the size
+   that fits, and the difference goes to the rules text.
 2. **What remains pads the picture**, split evenly above and below. The image
    ends up optically centred between the type line and the rules text.
 
@@ -60,24 +73,34 @@ dithering that took 29 minutes to compute.
 Instead it walks a fixed ladder of compromises, least destructive first, and
 takes the first rung that fits:
 
-| Rung | Rules text | Artwork |
-|---:|---:|---:|
-| 1 | 24 px | 100 % |
-| 2 | 24 px | 92 % |
-| 3 | 22 px | 92 % |
-| 4 | 22 px | 82 % |
-| … | … | … |
-| 9 | 17 px | 50 % |
+| Rung | Rules text | Reminders | Artwork |
+|---:|---:|:--|---:|
+| 1 | 24 px | kept | 100 % |
+| 2 | 24 px | kept | 92 % |
+| 3 | 24 px | dropped | 92 % |
+| 4 | 24 px | dropped | 82 % |
+| … | … | … | … |
+| 9 | 20 px | dropped | 50 % |
 
-Text gives ground first: dropping the rules text one point is barely visible,
-cropping the artwork is. Cropping takes rows off the top and bottom evenly so
-the subject stays centred, and — crucially — keeps the pixel grid 1:1.
+The order is the argument. **Reminder text goes before type shrinks**: it is
+parenthesised text explaining a keyword the players at the table already know,
+and some cards spend four of six lines on it. Then type gives ground, because
+dropping the rules text one point is barely visible and cropping the picture is.
+Cropping takes rows off the top and bottom evenly so the subject stays centred
+and — crucially — keeps the pixel grid 1:1.
 
-If nothing on the ladder fits, the last rung is taken and the rules text is
-ellipsised into whatever vertical space remains.
+**Type stops at 20 px.** Below that, thermal bleed closes the counters of `a`,
+`e`, `s` and `8`, and a line you cannot read is worth less than a line that is
+not there. The ladder used to bottom out at 17 px with the art at half height,
+on perfectly ordinary cards, because the header was 78 dots more expensive than
+anyone had measured — see below.
 
-`Raster` always comes back at exactly the configured length — measured across a
-sample of both modes: 608 dots, 88.0 mm, every time.
+If nothing on the ladder fits, the last rung is taken and abilities are laid in
+until the space runs out, with the one that overruns ellipsised. An ability is
+only cut where there is room for at least one line of it.
+
+`Raster` always comes back at exactly the configured length: 568 dots of layout,
+704 dots of paper, 88.0 mm, every time.
 
 ## Layout
 
@@ -87,14 +110,15 @@ rules text. The mode only decides what fills the middle.
 ```
 QR mode                          Artwork mode
 ┌──────────────────────────┐     ┌──────────────────────────┐
-│ (3)  Blood-Cursed        │     │ (3)  Timmerian     ▓▓▓▓  │  ← small QR
-│      Knight              │     │      Fiends        ▓▓▓▓  │
+│ (3)  Blood-Cursed        │     │ (3)  Timmerian Fiends    │
+│      Knight              │     │                          │
 ├──────────────────────────┤     ├──────────────────────────┤
-│ Creature — Vampire  3/2  │     │ Creature — Horror   1/1  │
-│ 1 W B · White / Black    │     │ 1 B B · Black            │  ← cost and colour
-├──────────────────────────┤     ├──────────────────────────┤
-│      ▓▓▓▓▓▓▓▓▓▓▓         │     │                          │
-│      ▓▓ large QR ▓       │     │      dithered artwork    │
+│ White-Black Creature     │     │ Black Creature —   ┌───┐ │  ← colour is an
+│ — Vampire          ┌───┐ │     │ Horror             │1/1│ │    adjective, P/T
+│                    │3/2│ │     ├────────────────────└───┘─┤    is in a box
+├────────────────────└───┘─┤     │                          │
+│      ▓▓▓▓▓▓▓▓▓▓▓         │     │   dithered artwork  ▓▓▓  │  ← QR set into
+│      ▓▓ large QR ▓       │     │                     ▓▓▓  │    the corner
 │      ▓▓▓▓▓▓▓▓▓▓▓         │     │                          │
 ├──────────────────────────┤     ├──────────────────────────┤
 │ As long as you control   │     │ Remove this card from    │
@@ -105,24 +129,44 @@ QR mode                          Artwork mode
 The mana value badge is an **outlined ring, not a filled disc**. A solid 54-dot
 circle dumps a lot of heat into one spot and bleeds on cheap paper.
 
-### The colour line
+### Colour is an adjective
 
 A thermal slip is monochrome, so nothing on the paper tells you what colour the
-creature is. Usually the mana cost gives it away, but not always — a Devoid
-creature is colourless despite a coloured cost, Stonecoil Serpent costs `{X}`
-and is colourless, and Kobolds of Kher Keep has no mana cost at all and is red.
-Since Momir hands you a *token copy* of the card, and colour decides what can
-target it, the slip spells it out.
+card is. Usually the mana cost gives it away, but not always — a Devoid creature
+is colourless despite a coloured cost, Stonecoil Serpent costs `{X}` and is
+colourless, and Kobolds of Kher Keep has no mana cost at all and is red. Since
+Momir hands you a *token copy* of the card, and colour decides what can target
+it, the slip spells it out.
 
-Colours are named for one to three of them ("White / Black") and shortened to
-letters for four or five, because "White / Blue / Black / Red / Green" is
-thirty-five characters and anyone holding a five-colour creature can read WUBRG.
+It goes **in front of the type line**, which is where a player already says it:
+"Blue-Black Creature — Demon Illusion". One to three colours are named and
+hyphenated; four or five collapse to letters, because that is no longer a phrase
+anyone says and a player holding a five-colour creature can read WUBRG.
 
-That line runs the **full width, under the type line**, rather than under the
-card name. In artwork mode the title column is only about 170 dots wide once the
-badge and the QR have taken their share, and Reaper King's
-`2/W 2/U 2/B 2/R 2/G` does not fit in that at any size worth reading — it used
-to run underneath the QR and get clipped.
+It used to be its own 19 px line under the type line, which cost 25 dots. The
+mana cost shared that line and has gone with it: the badge already carries the
+mana value, and colour is the part of a cost that decides anything about a token
+copy.
+
+### Power/toughness is in a box
+
+At the end of the type line, at 23 px, it was a number in a sentence. A real
+card puts it in a box in the corner that you find without looking. The type row
+already reserves enough height for 32 px in a stroked box, so this costs
+nothing. Loyalty takes the same box, labelled, because a bare `4` where a
+creature says `3/4` reads as half a power and toughness.
+
+### Abilities are separate
+
+Oracle text arrives as one blob with newlines in it, and a newline is
+typographically identical to a wrap — so a creature with flying and a tap
+ability printed as one grey paragraph in which the reader had to find the
+boundary themselves. Each ability now gets its own layout and a 7-dot gap.
+
+Braces come off the symbols in the same pass: `{2}{U}, {T}:` is twelve
+characters for three symbols, and without a mana font there is nothing to draw
+inside them. Reminder text is set in italic when it is kept, and dropped
+entirely before the type is shrunk.
 
 ### Why artwork slips still carry a QR
 
@@ -130,9 +174,20 @@ The scanner resolves a slip back to its card by reading that QR, which is what
 makes "which tokens does this make" work at the table. An artwork slip without
 one would be a dead end.
 
-It goes in the header rather than under the rules text. Beside the name it costs
-about 2 mm of length; below the text it would cost 14 mm and force the artwork
-to be cropped to pay for it.
+It is **set into the artwork's bottom-right corner**, on its own white plate,
+where it costs no length at all.
+
+It used to sit in the header beside the name, and this document used to claim
+that cost "about 2 mm". It did not: a 29-module symbol at 4 dots per module is
+132 dots tall, and against a header that is otherwise 54 to 80 dots, that is 50
+to 78 dots of slip — 6 to 10 mm, an eighth of the paper. That one number is what
+drove ordinary cards to the bottom of the fallback ladder, printing 17 px text
+beside art cropped to half.
+
+The plate spends about a fifth of the picture's area instead, in the corner
+where an art crop keeps its background. Artwork too short to hold a plate hands
+the code back to the header, which is the old behaviour and still the right
+answer when it happens.
 
 ### Shortening the URL
 
@@ -157,8 +212,14 @@ comes out fuzzy.
 
 | | Modules | Dot size | Why |
 |---|---:|---:|---|
-| Header QR | 4 | 0.5 mm | The size a QR on a business card uses. 3 fits more comfortably but thermal dots bleed into their neighbours, and 0.375 mm modules start closing the gaps a decoder needs. |
-| Body QR | 4–9 | 0.5–1.1 mm | Grows into whatever the rules text leaves. Width caps it at 9. |
+| Corner QR | 4 | 0.5 mm | The size a QR on a business card uses. 3 fits more comfortably but thermal dots bleed into their neighbours, and 0.375 mm modules start closing the gaps a decoder needs. |
+| Body QR | 4–6 | 0.5–0.75 mm | Grows into whatever the rules text leaves. |
+
+The quiet zone is **4 modules**, which is what the spec asks for. It was 2, and
+that worked only because every code was surrounded by the layout's own white
+paper — an assumption that stopped being true the moment one was set into
+artwork. The corner plate carries its full quiet zone as white pixels punched
+into the picture.
 
 Error correction is **M (15 %)**. Slips get thumbed, folded and left in sleeves;
 L is smaller but does not survive a smudge across a timing pattern.
@@ -183,6 +244,33 @@ The on-device resync repeats these exact steps in Kotlin, with the same
 parameters, so artwork pulled over WiFi is indistinguishable from artwork built
 on a PC. If the two drifted, a deck built before a resync and one built after
 would print at visibly different densities.
+
+They had drifted. The device side skipped the autocontrast pass entirely, scaled
+bilinear where Pillow uses Lanczos, and pivoted the contrast lift around a fixed
+mid-grey where `ImageEnhance.Contrast` pivots around the image's own mean. On a
+dark original that came to a mean difference of **92 levels out of 255** — not a
+drift, a different picture.
+
+`tools/dithercheck.py` re-implements the Kotlin side in Python and diffs it
+against the builder's own pipeline. It reports a maximum difference of 0 levels
+on greyscale material and 2 on colour, which is JPEG rounding. Run it after
+touching either implementation:
+
+```bash
+python tools/dithercheck.py
+```
+
+Three things had to be exact and none of them were obvious:
+
+- **Pillow resamples 8-bit images in 8 bits.** The horizontal pass is rounded
+  and clipped to `uint8` before the vertical pass reads it. Carrying full floats
+  between the passes is more accurate and therefore wrong — it moves the result
+  by up to eight levels.
+- **`convert("L")` is ITU-R 601 in 16-bit fixed point**, not Android's
+  77/151/28. The weights agree to about a tenth of a percent, which a 1.25
+  contrast lift turns into flipped pixels.
+- **Lanczos support widens with the scale factor** when shrinking. Without that
+  it is a point sample with extra steps.
 
 ## Compositing and thresholding
 
@@ -228,14 +316,20 @@ reason above. See [sunmi-aidl.md](sunmi-aidl.md).
 
 ## Checking a layout without printing
 
-Long-press the **PRINT** button. It rolls a creature, renders the slip, and
-writes it to `preview.png` in the app's external files directory instead of
-printing:
+Long-press the **PRINT** button. It rolls a card, renders the slip, and writes
+it to `preview.png` in the app's external files directory instead of printing:
 
 ```bash
 adb pull /sdcard/Android/data/software.zeasy.momir/files/preview.png
 ```
 
-Every slip image in this documentation was produced that way. It is also how the
-two layout bugs described above — the clipped mana cost and the broken word —
-were caught, without a metre of wasted paper.
+What it writes is the **whole torn-off slip**, margins included: 704 dots, with
+the 12 mm of white above the card name and the 5 mm below the rules text that
+the printer is never asked to burn. The renderer's own bitmap is 568 dots of
+layout and nothing else, and every image in `docs/images/` used to be that one —
+so none of them showed the object that comes out of the slot, which is part of
+why a 12 mm head margin against a 0.75 mm foot went unnoticed for as long as it
+did.
+
+Every slip image in this documentation was produced this way. It is also how the
+layout bugs described above were caught, without a metre of wasted paper.
