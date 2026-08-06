@@ -162,10 +162,25 @@
 
     <!-- actions -->
 
+    <TextView
+        android:id="@+id/cardPrint"
+        style="@style/TextAppearance.Momir.Action"
+        android:layout_width="match_parent"
+        android:layout_height="52dp"
+        android:layout_marginStart="20dp"
+        android:layout_marginEnd="20dp"
+        android:layout_marginTop="16dp"
+        android:background="@drawable/bg_button_gold"
+        android:clickable="true"
+        android:focusable="true"
+        android:gravity="center"
+        android:text="@string/card_print"
+        android:textColor="@color/on_accent" />
+
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="16dp"
+        android:layout_marginTop="10dp"
         android:orientation="horizontal"
         android:paddingStart="20dp"
         android:paddingEnd="20dp">

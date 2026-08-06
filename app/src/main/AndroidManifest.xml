@@ -46,6 +46,14 @@
             android:screenOrientation="portrait"
             android:theme="@style/Theme.Momir" />
 
+        <!-- adjustResize: the list has to give way to the keyboard, not slide under it. -->
+        <activity
+            android:name=".ui.SearchActivity"
+            android:exported="false"
+            android:screenOrientation="portrait"
+            android:theme="@style/Theme.Momir"
+            android:windowSoftInputMode="adjustResize|stateVisible" />
+
         <service
             android:name=".sync.SyncService"
             android:exported="false"

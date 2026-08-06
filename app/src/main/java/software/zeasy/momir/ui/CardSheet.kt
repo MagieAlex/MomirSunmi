@@ -41,8 +41,11 @@ import software.zeasy.momir.print.SlipContent
  * set bits are ink. It is the same image the slip prints, which is the point -
  * this is a view of the card you are holding, not a different picture of it.
  *
+ * @param onPrint what the gold button asks for. This is also where a searched
+ *   card is printed from: the search returns a card, the card is shown, and the
+ *   press that spends paper is a deliberate one rather than a mis-tap in a list.
  * @param onTokens opened from the footer when the card creates any. Printing
- *   stays the activity's job; this sheet only ever shows.
+ *   stays the activity's job - it owns the printer, the glow and the busy state.
  */
 class CardSheet(
     private val activity: Activity,
@@ -50,6 +53,7 @@ class CardSheet(
     private val tokenCount: Int,
     /** The card's raster from art.pack, already read off the main thread. */
     private val art: ByteArray?,
+    private val onPrint: () -> Unit,
     private val onTokens: () -> Unit,
     private val onDismiss: () -> Unit = {},
 ) {
@@ -82,15 +86,19 @@ class CardSheet(
     // ------------------------------------------------------------------------
 
     private fun bindTitle() {
-        val badge = card.manaValue.toString()
-        binding.cardBadge.text = badge
+        binding.cardBadge.text = card.manaValue.toString()
         binding.cardName.text = card.name
-        // Same rule the slip applies: a single generic {7} beside a ring that
-        // already says 7 is noise, and a card with no mana cost at all - Kobolds
-        // of Kher Keep, an Eldrazi Spawn - has nothing to put here.
-        val cost = card.manaCost.takeIf {
-            it.isNotBlank() && card.plainManaCost != badge
-        }
+
+        // The whole cost, always, including the ones that are a single generic
+        // symbol. Those used to be suppressed as duplicating the ring beside the
+        // name, which took the cost off every colourless card in the game -
+        // artifacts and Eldrazi print `{7}` and nothing else. They are not the
+        // same fact anyway: the ring is the mana value you rolled, and on an
+        // X spell it is not what the cost says.
+        //
+        // Blank stays blank. Ancestral Vision and the Pacts genuinely have no
+        // mana cost, and an empty box in the corner would be a claim about them.
+        val cost = card.manaCost.takeIf { it.isNotBlank() }
         binding.cardCost.visibility = if (cost == null) View.GONE else View.VISIBLE
         binding.cardCost.text = cost?.let { symbols(it, binding.cardCost) } ?: ""
     }
@@ -147,6 +155,10 @@ class CardSheet(
         ManaSymbols.render(activity, text, (view.textSize * SYMBOL_SCALE).toInt())
 
     private fun bindActions() {
+        binding.cardPrint.setOnClickListener {
+            dialog.dismiss()
+            onPrint()
+        }
         binding.cardTokens.visibility = if (tokenCount > 0) View.VISIBLE else View.GONE
         binding.cardTokens.text = activity.resources
             .getQuantityString(R.plurals.tokens_button, tokenCount, tokenCount)
@@ -208,8 +220,14 @@ class CardSheet(
     }
 
     private companion object {
-        /** How much of the screen the scrolling part may take before it scrolls. */
-        const val MAX_SCROLL_FRACTION = 0.60f
+        /**
+         * How much of the screen the scrolling part may take before it scrolls.
+         *
+         * The rest is the title bar and two rows of buttons, and the buttons are
+         * the half that must never be pushed off - a sheet you cannot close is a
+         * worse card view than one you have to scroll.
+         */
+        const val MAX_SCROLL_FRACTION = 0.55f
 
         /** Symbol size against the type it is set in. See [symbols]. */
         const val SYMBOL_SCALE = 1.12f

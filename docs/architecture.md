@@ -215,6 +215,20 @@ muddy as emitted light on a near-black screen. Black gets violet, because there
 is no such thing as a black glow and every digital Magic client has made the
 same substitution for twenty years.
 
+`SearchActivity` is a field and a list: type a name, get every card on the
+device whose name contains it, prefix matches first so "lotus" offers Black
+Lotus before thirty cards with the word in the middle. A `LIKE '%...%'` cannot
+use an index and scans all 30,000 rows, which on this device is a few
+milliseconds - it runs on the IO thread and 220 ms after the last keystroke
+rather than on each one, because three of the four queries "urza" would start
+answer a question nobody is asking any more.
+
+It returns an oracle id, the way the scanner returns the text it read, and the
+card is then *shown* rather than printed: a list where touching a row spends
+paper turns every mis-tap into a slip. The print happens from the card view,
+which is a full screen rather than a sheet because typing needs the keyboard and
+the keyboard needs the room.
+
 `CardSheet` is the card behind the slip: tapping the name on the result panel
 opens the artwork, the mana cost, the type line and the rules text, laid out in
 the order a Magic card is. Everything it needs is already on the device, so it

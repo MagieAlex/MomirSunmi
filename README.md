@@ -64,6 +64,9 @@ wants one.
 - **Read the card, not just the slip.** Tapping the name on the result panel
   opens the card itself: the artwork on a paper-coloured window, the mana cost
   and rules text in real Magic symbols, laid out in the order a card is.
+- **Search.** The dial rolls, but sooner or later you want a particular card —
+  the token an opponent just made, a Sol Ring for the pile. Type a name, look at
+  what you found, print it.
 - **It looks like Magic.** The dial spins Magic's own mana symbols — Scryfall's
   artwork, converted to vector drawables and shipped in the APK, because a device
   with no network still has to draw them. The print button is a brass seal with
@@ -127,6 +130,7 @@ where it left off.
 | Spin the dial | Pick a mana value. Only values that category actually has are offered — Magic has never printed a creature at mana value 14, and planeswalkers start at 2. |
 | **PRINT** | Rolls a random card of that type at that mana value and prints it. |
 | Long-press **PRINT** | Renders the slip to `preview.png` in the app's files directory *without* printing. For checking a layout without burning paper. |
+| Search (magnifier) | Find any of the 30,423 by name and print it. The dial rolls; sooner or later you want *this* card. |
 | Tap the card's name | Opens the card itself: artwork, mana cost and rules text in real Magic symbols, laid out the way a card is. The slip is 48 mm wide and usually across the table by the time someone wants to re-read an ability off it. |
 | Tap "*n* tokens" | Opens the token sheet: pick one, set a quantity, print — or print one of each. |
 | Scan button | Reads the QR off a slip and opens that card's token sheet, stamped as a scan. |

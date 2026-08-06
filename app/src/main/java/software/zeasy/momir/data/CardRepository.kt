@@ -199,6 +199,40 @@ class CardRepository(private val context: Context) {
         }
     }
 
+    /**
+     * Cards whose name contains [query], for the search screen.
+     *
+     * Ordered so that what you typed comes first: names that *start* with the
+     * query, then the rest, alphabetically inside each. Typing "bolas" should
+     * offer Bolas's Citadel before Nicol Bolas, God-Pharaoh, and typing "lotus"
+     * should not bury Black Lotus under thirty cards with "Lotus" in the middle.
+     *
+     * A `LIKE '%...%'` cannot use an index, so this is a table scan over 30,000
+     * rows. On the V2 that is a handful of milliseconds - it is still an IO
+     * thread's job, but it does not need an FTS table to be one.
+     */
+    fun search(query: String, limit: Int = 60): List<Card> {
+        val database = db ?: return emptyList()
+        val trimmed = query.trim()
+        if (trimmed.isEmpty()) return emptyList()
+
+        // LIKE's own wildcards, typed by someone looking for a card called "50%".
+        val escaped = trimmed.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+        val out = ArrayList<Card>(limit)
+        database.rawQuery(
+            """
+            $SELECT_COLUMNS
+            WHERE name LIKE ? ESCAPE '\'
+            ORDER BY (CASE WHEN name LIKE ? ESCAPE '\' THEN 0 ELSE 1 END), name
+            LIMIT ?
+            """.trimIndent(),
+            arrayOf("%$escaped%", "$escaped%", limit.toString()),
+        ).use { c ->
+            while (c.moveToNext()) out += c.toCard()
+        }
+        return out
+    }
+
     fun cardByOracleId(oracleId: String): Card? {
         val database = db ?: return null
         database.rawQuery("$SELECT_COLUMNS WHERE oracle_id = ?", arrayOf(oracleId)).use { c ->

@@ -198,6 +198,18 @@ class SlipRenderer {
         header.name.draw(canvas)
         canvas.restore()
 
+        header.cost?.let { cost ->
+            // Right-aligned by moving the whole layout, so the last symbol lands
+            // on the margin whatever the cost turned out to measure.
+            canvas.save()
+            canvas.translate(
+                header.costRight - cost.getLineWidth(0),
+                (y + (header.height - cost.height) / 2).toFloat(),
+            )
+            cost.draw(canvas)
+            canvas.restore()
+        }
+
         y += header.height + blockGap
         drawRule(canvas, y)
         y += ruleThickness + blockGap
@@ -274,18 +286,53 @@ class SlipRenderer {
     // Blocks
     // ------------------------------------------------------------------------
 
-    private class Header(val name: StaticLayout, val titleLeft: Int, val height: Int)
+    private class Header(
+        val name: StaticLayout,
+        val titleLeft: Int,
+        val cost: StaticLayout?,
+        val costRight: Int,
+        val height: Int,
+    )
 
+    /**
+     * Badge, name, and the mana cost against the right edge - which is where a
+     * Magic card puts it, and the only place on a 384-dot slip it can go without
+     * costing a row of its own.
+     *
+     * The cost is allowed a third of the header and shrinks inside it, because
+     * the pathological case is real: Reaper King costs `2/W 2/U 2/B 2/R 2/G`,
+     * nineteen characters, and it may not be allowed to squeeze the card's name
+     * down to nothing to fit at full size.
+     */
     private fun header(content: SlipContent, qrSize: Int): Header {
         val badgeWidth = if (content.badge != null) badgeSize + gap else 0
         val titleLeft = sideMargin + badgeWidth
-        val titleWidth = width - sideMargin - titleLeft - (if (qrSize > 0) qrSize + gap else 0)
+        val right = width - sideMargin - (if (qrSize > 0) qrSize + gap else 0)
+
+        val cost = content.cost.takeIf { it.isNotBlank() }?.let {
+            fitToLines(it, textPaint(COST_SIZE, bold = true), (right - titleLeft) / 3, 1, COST_MIN_SIZE)
+        }
+        // The measured line, not the layout's width, which is the box it was
+        // given rather than the ink it put in it.
+        val costInk = cost?.let { Math.ceil(it.getLineWidth(0).toDouble()).toInt() } ?: 0
+        val costWidth = if (cost == null) 0 else costInk + gap
 
         // The floor is above the type line's size on purpose: a card name set
         // smaller than the type under it stops being the heading of the slip.
-        val name = fitToLines(content.title, textPaint(NAME_SIZE, bold = true), titleWidth, 2, NAME_MIN_SIZE)
-        val height = maxOf(if (content.badge != null) badgeSize else 0, name.height, qrSize)
-        return Header(name, titleLeft, height)
+        val name = fitToLines(
+            content.title,
+            textPaint(NAME_SIZE, bold = true),
+            right - titleLeft - costWidth,
+            2,
+            NAME_MIN_SIZE,
+        )
+        val height = maxOf(
+            if (content.badge != null) badgeSize else 0,
+            name.height,
+            cost?.height ?: 0,
+            qrSize,
+        )
+        return Header(name, titleLeft, cost, right, height)
     }
 
     /**
@@ -748,6 +795,10 @@ class SlipRenderer {
         /** Above [TYPE_SIZE]: the heading of a slip may not end up smaller than its subheading. */
         private const val NAME_MIN_SIZE = 23f
         private const val TYPE_SIZE = 21f
+
+        /** The mana cost in the header. Reads as part of the title, not as the title. */
+        private const val COST_SIZE = 25f
+        private const val COST_MIN_SIZE = 15f
 
         /** Power/toughness, and loyalty, at the size a card prints them. */
         private const val CORNER_SIZE = 32f

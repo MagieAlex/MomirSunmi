@@ -124,6 +124,7 @@ class MainActivity : AppCompatActivity() {
         binding.settingsButton.setOnClickListener { showSettings() }
         binding.syncButton.setOnClickListener { startResync() }
         binding.scanButton.setOnClickListener { startScan() }
+        binding.searchButton.setOnClickListener { startSearch() }
         binding.resultTokens.setOnClickListener { lastCard?.let { showTokens(it, fromScan = false) } }
         binding.resultText.setOnClickListener { lastCard?.let { showCard(it) } }
 
@@ -589,10 +590,39 @@ class MainActivity : AppCompatActivity() {
                 card = card,
                 tokenCount = tokens.size,
                 art = art,
+                onPrint = { printCard(card) },
                 onTokens = { showTokens(card, fromScan = false) },
                 onDismiss = { revealResult(hasTokens = tokens.isNotEmpty()) },
             ).show()
         }
+    }
+
+    /**
+     * Prints one named card, rather than one the dial rolled.
+     *
+     * The same glow, the same panel and the same printer as a roll - the only
+     * thing that differs is where the card came from, and by the time it gets
+     * here that is nobody's business.
+     */
+    private fun printCard(card: Card) {
+        binding.printButton.isBusy = true
+        lifecycleScope.launch {
+            playPrintGlow(card.colorIdentity)
+            showResult(card)
+            printSlip(SlipContent.of(card))
+            binding.printButton.isBusy = false
+        }
+    }
+
+    // ------------------------------------------------------------------------
+    // Search
+    // ------------------------------------------------------------------------
+
+    private fun startSearch() {
+        startActivityForResult(
+            Intent(this, SearchActivity::class.java),
+            SearchActivity.REQUEST_SEARCH,
+        )
     }
 
     // ------------------------------------------------------------------------
@@ -654,7 +684,22 @@ class MainActivity : AppCompatActivity() {
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         @Suppress("DEPRECATION")
         super.onActivityResult(requestCode, resultCode, data)
-        if (requestCode != ScannerActivity.REQUEST_SCAN || resultCode != Activity.RESULT_OK) return
+        if (resultCode != Activity.RESULT_OK) return
+
+        if (requestCode == SearchActivity.REQUEST_SEARCH) {
+            val oracleId = data?.getStringExtra(SearchActivity.EXTRA_ORACLE_ID) ?: return
+            lifecycleScope.launch {
+                val card = withContext(Dispatchers.IO) { repository.cardByOracleId(oracleId) }
+                // Shown rather than printed: the search hands over a card, and
+                // the press that spends paper should be one somebody meant.
+                if (card != null) {
+                    showResult(card)
+                    showCard(card)
+                }
+            }
+            return
+        }
+        if (requestCode != ScannerActivity.REQUEST_SCAN) return
 
         val text = data?.getStringExtra(ScannerActivity.EXTRA_RESULT) ?: return
         if (!text.contains("scryfall.com")) {
@@ -767,6 +812,7 @@ class MainActivity : AppCompatActivity() {
             val content = SlipContent(
                 title = "Test Slip",
                 badge = "8",
+                cost = "4 W U",
                 typeLine = "Calibration — Tear here and measure",
                 powerToughness = null,
                 loyalty = null,

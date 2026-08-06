@@ -14,6 +14,18 @@ data class SlipContent(
     /** Mana value, drawn in the ring. Null for tokens, which have no mana value. */
     val badge: String?,
     /**
+     * Mana cost, set against the right edge of the header the way a card sets it.
+     *
+     * Braces off and letters only - a thermal head has no mana font, and 48 mm
+     * has no room for one. Empty for a token, and for the forty-five cards that
+     * genuinely have no mana cost at all.
+     *
+     * It went missing for a while: the cost used to share a line with the
+     * colour, the colour moved into the type line as an adjective, and the cost
+     * went out with the line rather than with a decision.
+     */
+    val cost: String,
+    /**
      * Type line, with the card's colour in front of it: "Blue Creature - Human
      * Wizard".
      *
@@ -114,6 +126,7 @@ data class SlipContent(
         fun of(card: Card) = SlipContent(
             title = card.name,
             badge = card.manaValue.toString(),
+            cost = card.plainManaCost,
             typeLine = coloured(card.colorIdentity, card.typeLine),
             powerToughness = card.powerToughness,
             loyalty = card.loyalty,
@@ -127,6 +140,7 @@ data class SlipContent(
         fun of(token: Token) = SlipContent(
             title = token.name,
             badge = null,
+            cost = "",
             // Scryfall's token type lines already start with "Token", so the
             // slip says "Black Token Creature - Zombie" without being told to.
             typeLine = coloured(token.colors, token.typeLine),

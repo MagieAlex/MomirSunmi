@@ -93,6 +93,12 @@
     <string name="sync_starting">Downloading what this device is missing</string>
     <string name="result_loyalty">Loyalty %1$s</string>
 
+    <string name="search">Search for a card</string>
+    <string name="search_hint">Card name</string>
+    <string name="search_empty">Type a name. Every card on the device is here, whatever the dial is set to.</string>
+    <string name="search_nothing">No card by that name on this device.</string>
+    <string name="card_print">Print this card</string>
+
     <string name="scan">Scan a slip</string>
     <string name="scan_hint">Hold the QR code on a printed slip inside the frame</string>
     <string name="camera_denied">Camera permission is needed to scan slips</string>
