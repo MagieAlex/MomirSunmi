@@ -29,7 +29,7 @@ that it has not disabled debugging on its own.
 
 ## Confirming the hardware
 
-Worth doing before building anything, since these numbers drive the whole design:
+Worth doing before building anything, since these numbers drive the design:
 
 ```bash
 adb shell "getprop ro.build.version.release; getprop ro.product.model; getprop ro.product.cpu.abilist"
@@ -48,7 +48,7 @@ MemTotal:  909844 kB
 package:woyou.aidlservice.jiuiv5
 ```
 
-That last line is the one that matters — no printer service, no printing.
+That last line is the one that matters. No printer service, no printing.
 
 ## Building and installing
 
@@ -87,27 +87,32 @@ adb push out/momir.db  /sdcard/Android/data/software.zeasy.momir/files/
 adb push out/art.pack  /sdcard/Android/data/software.zeasy.momir/files/
 ```
 
-## Calibrating the tear feed
+## Calibrating the paper geometry
 
-The one setting worth getting right. Settings → **Test print** produces a slip
-that tells you what to do: tear it off, hold it against a ruler, and compare
-with the length the app reports.
+Settings → **Test print** produces a slip with instructions on it. Tear it off
+and measure the white band above the card name: that band *is* the distance from
+the print head to the tear bar, and it is what **head to tear bar** should be set
+to. The default is 12 mm.
 
-- Slip comes out **too long** → reduce "feed after printing".
-- The last line gets **cut off by the tear bar** → increase it.
+- The band measures **more** than the setting → increase the setting.
+- The last line is **cut off by the tear bar** → the setting is too high.
 
-Default is 12 mm. Once it matches, check a slip actually slides into a sleeve —
-that is the real test.
+**Margin at the foot** is free choice: it is white paper under the rules text,
+fed on top of the distance above, and it comes out of the layout's space rather
+than the slip's length. The default is 5 mm.
+
+Once the numbers agree, check that a slip slides into a sleeve. That is the real
+test.
 
 ## Troubleshooting
 
-**"No card data on this device"** — the corpus is not where the app looks.
+**"No card data on this device".** The corpus is not where the app looks.
 
 ```bash
 adb shell ls -la /sdcard/Android/data/software.zeasy.momir/files/
 ```
 
-**Nothing prints, no error** — check the service is bound:
+**Nothing prints and no error appears.** Check that the service is bound:
 
 ```bash
 adb logcat -s SunmiPrinter
@@ -117,21 +122,21 @@ adb logcat -s SunmiPrinter
 If it never connects, confirm `woyou.aidlservice.jiuiv5` is installed and has
 not been disabled.
 
-**Printer runs but the paper is blank** — the roll is in upside down. Thermal
-paper only takes heat on one side.
+**The printer runs but the paper is blank.** The roll is in upside down.
+Thermal paper only takes heat on one side.
 
-**Slips are far too long** — check "maximum slip length" is 88 mm and the tear
-feed is not set to something like 30 mm.
+**Slips are far too long.** Check that "slip length" is 88 mm and that "head to
+tear bar" is not set to something like 30 mm.
 
-**Resync fails** — the device needs to reach `api.scryfall.com` and
+**Resync fails.** The device needs to reach `api.scryfall.com` and
 `data.scryfall.io` over HTTPS. Android 7.1 supports TLS 1.2, so this is normally
-just WiFi.
+a WiFi problem.
 
 ```bash
 adb logcat -s ScryfallSync
 ```
 
-**The camera scanner will not open** — the app asks for `CAMERA` at runtime the
+**The camera scanner will not open.** The app asks for `CAMERA` at runtime the
 first time. If it was denied:
 
 ```bash
@@ -154,8 +159,8 @@ adb shell screencap -p /sdcard/s.png && adb pull /sdcard/s.png
 ```
 
 > `screencap` returns an all-black image while the screen is off. Wake it first
-> with `adb shell input keyevent KEYCODE_WAKEUP` — the activity is running and
-> logcat looks perfectly healthy, which makes this a confusing few minutes.
+> with `adb shell input keyevent KEYCODE_WAKEUP`. The activity is running and
+> logcat looks healthy meanwhile, which makes this a confusing few minutes.
 
 Watch everything the app says:
 

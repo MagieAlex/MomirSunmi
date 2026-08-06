@@ -1,7 +1,7 @@
 # Data pipeline
 
-How Scryfall's bulk export becomes the offline card corpus, and — more
-importantly — exactly which cards get in and why.
+How Scryfall's bulk export becomes the offline card corpus, and which cards get
+in and why.
 
 ## The three build steps
 
@@ -25,7 +25,7 @@ which 28,117 carry a colour identity and 2,306 are colourless.
 
 ## Streaming, not loading
 
-Scryfall now publishes bulk data as **gzipped JSONL** — one complete card object
+Scryfall now publishes bulk data as **gzipped JSONL**, one complete card object
 per line. The Oracle export is 23 MB compressed, about 180 MB expanded.
 
 That format is what makes on-device resync possible at all. The V2 has 909 MB of
@@ -63,34 +63,31 @@ artifact creature is `CREATURE|ARTIFACT` = 3 and answers to a roll for either,
 Dryad Arbor is `CREATURE|LAND` = 17.
 
 These values are a contract between the builder and the app. Never renumber
-them — a corpus built last month is still sitting on somebody's device.
+them: a corpus built last month is still sitting on somebody's device.
 
 The mask comes from the type line up to the em dash, which makes supertypes and
 subtypes irrelevant: `Legendary Enchantment Creature — God` is
-`CREATURE|ENCHANTMENT`. That cut also does the right thing by the layouts which
-print both halves on the front. `Creature — Faerie Rogue // Instant — Adventure`
-stops at the first em dash, so Brazen Borrower stays the creature card it is
-rather than turning up when somebody rolls an instant; `Instant // Sorcery` has
-no em dash at all and rightly keeps both bits.
+`CREATURE|ENCHANTMENT`. That cut also handles the layouts that print both halves
+on the front. `Creature — Faerie Rogue // Instant — Adventure` stops at the first
+em dash, so Brazen Borrower stays a creature card instead of turning up on a roll
+for instants. `Instant // Sorcery` has no em dash at all and keeps both bits.
 
 ### Lands are the one type left out
 
-The LAND bit exists and is set wherever it belongs, but a card whose *only*
-type is land never enters the corpus. Being handed a random Wastes is not a game
-anybody wants to play, and the 1,100-odd plain lands would cost some 15 MB of
-`art.pack` and two minutes of Scryfall's bandwidth for slips nobody would ever
-use. Land creatures come along anyway, on their creature bit, and keep their
-LAND bit for the app to display.
+The LAND bit exists and is set wherever it belongs, but a card whose *only* type
+is land never enters the corpus. Nobody wants to be handed a random Wastes, and
+the 1,100-odd plain lands would cost about 15 MB of `art.pack` and two minutes of
+Scryfall's bandwidth for slips nobody would use. Land creatures come along on
+their creature bit and keep their LAND bit for the app to display.
 
-Instants and sorceries *are* in, permanent or not. You are rolling a card and
-printing it; whether it stays on the battlefield afterwards is not the pipeline's
-business.
+Instants and sorceries are in, permanent or not. You are rolling a card and
+printing it; whether it stays on the battlefield is not the pipeline's business.
 
 ### Planeswalkers carry their starting loyalty
 
 `cards.loyalty` is Scryfall's `loyalty`, `NULL` for everything that is not a
-planeswalker. A planeswalker slip without the number in the bottom corner is not
-something you can play with.
+planeswalker. Without it a planeswalker slip has no starting loyalty, and you
+cannot play from it.
 
 It is read off the front face only, so Jace, Vryn's Prodigy prints as the
 creature he is instead of borrowing the 5 from his flip side.
@@ -110,8 +107,8 @@ Shield Sphere         set=me1  set_type=masters    digital=True   games=[mtgo]
 Kobolds of Kher Keep  set=me3  set_type=masters    digital=True   games=[mtgo]
 ```
 
-All three are perfectly normal pieces of cardboard. The naive filter threw them
-out, along with 200-odd others.
+All three exist on cardboard. The naive filter threw them out along with about
+200 others.
 
 Legality is printing-independent, so that is what the filter uses:
 
@@ -124,10 +121,10 @@ def is_paper_card(card):
                for f in PAPER_LEGALITY_FORMATS)
 ```
 
-This also fixes the *other* direction. Mystery Booster playtest cards like
-`Gobland` are `games=[paper]` and `digital=false` — they genuinely exist on
-cardboard — but they were never tournament-legal and are not real Magic cards.
-`vintage=not_legal` catches them.
+It fixes the other direction too. Mystery Booster playtest cards like `Gobland`
+are `games=[paper]` and `digital=false`, and they do exist on cardboard, but they
+were never tournament-legal and are not real Magic cards. `vintage=not_legal`
+catches them.
 
 Alchemy rebalances fall out for free: they are legal only in `alchemy`,
 `historic` and `timeless`, so none of the three paper formats matches.
@@ -159,8 +156,8 @@ cards.
 
 ### Verifying it
 
-Measured while the corpus was creatures only. The quality rules have not moved
-since, so it still holds — it is just no longer the whole corpus.
+Measured while the corpus was creatures only. The quality rules have not changed
+since, so the check still holds; it is just no longer the whole corpus.
 
 The corrected filter's per-mana-value counts match Scryfall's search API exactly
 at the top end, where the numbers are small enough to check by hand:
@@ -175,8 +172,8 @@ at the top end, where the numbers are small enough to check by hand:
 | 16 | 1 | 1 |
 | 0 | 21 | 23 |
 
-The two extra at mana value 0 are Westvale Abbey and Hostile Hostel — the
-transform-card divergence above, showing up precisely where it should.
+The two extra at mana value 0 are Westvale Abbey and Hostile Hostel, which is
+the transform-card divergence above showing up where it should.
 
 There is no creature at mana value 14, and none above 16. The dial reflects
 that.
@@ -200,7 +197,7 @@ cards whose only type is land.
 
 `CREATE TABLE IF NOT EXISTS` does nothing to a table that already exists, so a
 new column will not appear in a corpus somebody built last month. Both the
-builder and the app therefore apply added columns by hand — the builder from a
+builder and the app therefore apply added columns by hand: the builder from a
 `MIGRATIONS` list, the app from `addColumnIfMissing` in `CardRepository`.
 
 Three so far:
@@ -213,28 +210,27 @@ Three so far:
 
 An older corpus opens fine. It simply animates colourless until it is rebuilt.
 
-`type_mask` needs more than a default, though: left at 0 it would match no roll
-at all, and the app would answer every press with nothing. So the builder
-backfills it in the same breath as adding it, deriving each row's mask from the
-`type_line` already stored. `ix_cards_type_mv` is created after the migration
-runs, for the obvious reason that the column does not exist before it.
+`type_mask` needs more than a default. Left at 0 it would match no roll at all
+and the app would answer every press with nothing, so the builder backfills it
+as it adds it, deriving each row's mask from the `type_line` already stored.
+`ix_cards_type_mv` is created after the migration runs, since the column does not
+exist before it.
 
-A backfilled corpus is therefore still perfectly usable — as the creature-only
-corpus it always was. Rolling an enchantment finds nothing until the next
-`build-db`, which is the honest answer.
+A backfilled corpus stays usable as the creature-only corpus it was. Rolling an
+enchantment finds nothing until the next `build-db`.
 
 ## Tokens
 
-Scryfall models "what does this card create" as `all_parts` — a list of related
-objects, of which the ones with `component == "token"` are what the card puts
-onto the battlefield.
+Scryfall models "what does this card create" as `all_parts`, a list of related
+objects whose `component == "token"` entries are what the card puts onto the
+battlefield.
 
 `build-tokens` looks at every card the corpus admits. It used to look at
-creatures only, which was right while they were all the app could roll — but a
-planeswalker whose entire job is making Soldiers is the most ordinary
-planeswalker there is, and half the enchantments worth rolling make something
-too. The token sheet is keyed on oracle id and never cared what type the card
-was, so widening this costs one condition and a few hundred extra rows.
+creatures only, which was right while they were all the app could roll. A
+planeswalker whose entire job is making Soldiers is an ordinary planeswalker,
+though, and plenty of enchantments make something too. The token sheet is keyed
+on oracle id and never cared what type the card was, so widening the scan costs
+one condition and a few hundred rows.
 
 Over the whole corpus:
 
@@ -248,8 +244,8 @@ Restricting that scan to creatures had cost nearly half the graph: 2,060
 references from 1,976 cards onto 532 tokens.
 
 The catch: `all_parts` references tokens by **printing id**, not Oracle id, so
-it cannot be joined against `oracle_cards` directly — that file holds a
-*different* printing of the same token.
+it cannot be joined against `oracle_cards` directly. That file holds a different
+printing of the same token.
 
 Rather than stream the 74 MB all-printings export just to build an id map,
 `build-tokens` collects the referenced printing ids (under a thousand across the
@@ -269,13 +265,13 @@ row.
 It is resumable by construction: the pack is append-only and offsets are
 committed to the database every 250 images. If it dies, run it again.
 
-Non-creature cards need nothing special here — every card object carries an
-`art_crop`, and `build-art` works off "has no artwork yet" rather than off a type.
+Non-creature cards need nothing special. Every card object carries an `art_crop`,
+and `build-art` works off "has no artwork yet" rather than off a type.
 
 Rate limiting is a global 10 requests/second, which is what Scryfall asks for.
-The full 31,156 images take a little under an hour from cold — the creature-only
-17,230 took 29 minutes, and the 13,127 that widening the roll added took a
-further 22. Please do not raise it.
+The full 31,156 images take a little under an hour from cold: the creature-only
+17,230 took 29 minutes, and the 13,127 that widening the roll added took another
+22. Please do not raise it.
 
 ## The art pack format
 
@@ -292,7 +288,7 @@ byte-for-byte what `GS v 0` wants, so printing artwork involves no decoding and
 no bitmap allocation.
 
 `build-db` prunes rows that no longer qualify. Their artwork stays in the pack as
-dead space — cheaper than rewriting a 400 MB file for a few hundred rows.
+dead space, which is cheaper than rewriting a 400 MB file for a few hundred rows.
 
 ## How big it gets
 
@@ -320,8 +316,8 @@ Per type, counting a card once for every bit it carries:
 | Battle | 36 |
 | Land | 22 |
 
-The overlaps are large — 1,192 of those artifacts and 238 of those enchantments
-are also creatures — which is why the column adds up to more than the corpus.
+The overlaps are large. 1,192 of those artifacts and 238 of those enchantments
+are also creatures, which is why the column adds up to more than the corpus.
 
 The 12,926 cards widening added are ~13 KB of dithered artwork each, so the pack
 grew by 169 MB and the download by 22 minutes. Both are one-offs: the pack is
@@ -337,8 +333,8 @@ The Resync button does the same work over WiFi:
 2. Stream the Oracle JSONL, filter, insert what is new.
 3. Fetch, dither and append artwork for anything missing, at 10 requests/second.
 
-A set release adds a few hundred cards, so in practice this is a couple of
-minutes. Cards are never deleted on-device — pruning only happens in the PC
+A set release adds a few hundred cards, so in practice this takes a couple of
+minutes. Cards are never deleted on-device; pruning only happens in the PC
 builder, where it is easy to verify.
 
 The resync filter has to admit the same types and derive the same mask as the

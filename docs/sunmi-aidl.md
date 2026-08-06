@@ -27,7 +27,7 @@ static final int TRANSACTION_sendRAWData = IBinder.FIRST_CALL_TRANSACTION + 10;
 
 The name exists only in your generated stub. What crosses the Binder boundary is
 an integer. If your declaration order differs from the service's, you call a
-different function than the one you wrote — with your arguments marshalled for
+different function than the one you wrote, with your arguments marshalled for
 the wrong signature.
 
 ## What the copies actually disagree about
@@ -80,9 +80,8 @@ prefix that all three copies agree on:
 ```
 
 `sendRAWData` at index 10 is the important one. Driving the printer with ESC/POS
-through a single raw-data call sidesteps the entire divergent region — the
-buffer management, the style setters, the cutter, the drawer — none of which
-this project needs anyway.
+through a single raw-data call sidesteps the whole divergent region: buffer
+management, style setters, the cutter, the drawer. None of it is needed here.
 
 That was not only a compatibility decision. `printBitmap` re-binarises whatever
 it is handed, which would undo the dithering, and `printText` would have to
@@ -108,9 +107,9 @@ nonsense rather than a version and a serial.
 
 ## The callback
 
-`ICallback` goes the other way — the service calls into *your* stub — so the
-risk is reversed. Declaring one method more than the firmware knows about is
-harmless (it never fires); declaring one fewer breaks the mapping.
+`ICallback` goes the other way: the service calls into *your* stub, so the risk
+is reversed. Declaring one method more than the firmware knows about is harmless,
+since it never fires. Declaring one fewer breaks the mapping.
 
 Two of the three copies have four methods, one has three. Four are declared.
 
@@ -118,8 +117,8 @@ Two of the three copies have four methods, one has three. Four are declared.
 
 1. Work out which SDK generation your firmware is, from `getServiceVersion()`.
 2. Find an AIDL copy that matches that generation, not merely one that compiles.
-3. Verify against a method with an observable, harmless effect — `lineWrap`
-   feeds paper — before trusting anything destructive.
+3. Verify against a method with an observable, harmless effect (`lineWrap` feeds
+   paper) before trusting anything destructive.
 4. Consider whether ESC/POS can do it instead. It usually can.
 
 Do not reorder the existing declarations. Append only.

@@ -125,6 +125,9 @@ class SlipRenderer {
         val headerPlain = header(content, 0)
 
         val typeRow = typeRow(content)
+        val corner = corner(content)
+        // Reserved at the foot of the layout, where it is drawn from.
+        val cornerStrip = corner?.let { it.boxHeight + blockGap } ?: 0
 
         val abilities = mapOf(
             true to RulesText.abilities(content.rulesText, keepReminders = true),
@@ -135,7 +138,7 @@ class SlipRenderer {
             budget = budgetDots,
             headerWithQr = headerWithQr,
             headerPlain = headerPlain,
-            typeRowHeight = typeRow.height,
+            typeRowHeight = typeRow.height + cornerStrip,
             abilities = abilities,
             wantsArt = wantsArt,
             artHeight = artHeight,
@@ -150,7 +153,8 @@ class SlipRenderer {
             else -> 0
         }
 
-        var fixed = header.height + blockGap + ruleThickness + blockGap + typeRow.height
+        var fixed = header.height + blockGap + ruleThickness + blockGap +
+            typeRow.height + cornerStrip
         if (bodyHeight > 0) fixed += blockGap + ruleThickness + blockGap
 
         // What is left goes to the rules text, which is also what stops the
@@ -214,7 +218,10 @@ class SlipRenderer {
         drawRule(canvas, y)
         y += ruleThickness + blockGap
 
-        drawTypeRow(canvas, typeRow, y)
+        canvas.save()
+        canvas.translate(sideMargin.toFloat(), y.toFloat())
+        typeRow.draw(canvas)
+        canvas.restore()
         y += typeRow.height
 
         if (bodyHeight > 0) {
@@ -246,6 +253,10 @@ class SlipRenderer {
                 y += layout.height + abilityGap
             }
         }
+
+        // Last, and from the bottom edge up: the corner is the one thing on the
+        // slip whose position does not depend on what came before it.
+        corner?.let { drawCorner(canvas, it, budgetDots) }
 
         return bitmap
     }
@@ -299,31 +310,42 @@ class SlipRenderer {
      * Magic card puts it, and the only place on a 384-dot slip it can go without
      * costing a row of its own.
      *
-     * The cost is allowed a third of the header and shrinks inside it, because
-     * the pathological case is real: Reaper King costs `2/W 2/U 2/B 2/R 2/G`,
-     * nineteen characters, and it may not be allowed to squeeze the card's name
-     * down to nothing to fit at full size.
+     * The name is served first. It gets [NAME_COLUMN] dots if the header has
+     * them, and the cost is fitted into whatever is left over; if that is not
+     * enough to set a cost in, the slip goes without one. Both cases are real.
+     * Reaper King costs `2/W 2/U 2/B 2/R 2/G`, nineteen characters, which cannot
+     * be allowed to squeeze the name down to nothing; and a card whose artwork
+     * was dropped hands the QR back to the header, which leaves about 150 dots
+     * for everything and no room to argue about. A truncated card name is worse
+     * than a missing cost, because the name is what the slip is *for*.
      */
     private fun header(content: SlipContent, qrSize: Int): Header {
         val badgeWidth = if (content.badge != null) badgeSize + gap else 0
         val titleLeft = sideMargin + badgeWidth
         val right = width - sideMargin - (if (qrSize > 0) qrSize + gap else 0)
 
-        val cost = content.cost.takeIf { it.isNotBlank() }?.let {
-            fitToLines(it, textPaint(COST_SIZE, bold = true), (right - titleLeft) / 3, 1, COST_MIN_SIZE)
-        }
+        val forCost = (right - titleLeft - NAME_COLUMN).coerceAtLeast(0)
+        val cost = content.cost
+            .takeIf { it.isNotBlank() && forCost >= COST_MIN_WIDTH }
+            ?.let { fitToLines(it, textPaint(COST_SIZE, bold = true), forCost, 1, COST_MIN_SIZE) }
         // The measured line, not the layout's width, which is the box it was
         // given rather than the ink it put in it.
         val costInk = cost?.let { Math.ceil(it.getLineWidth(0).toDouble()).toInt() } ?: 0
         val costWidth = if (cost == null) 0 else costInk + gap
 
-        // The floor is above the type line's size on purpose: a card name set
+        // Two lines normally, four when the header is carrying the QR: that
+        // makes it 148 dots tall on its own, so the extra lines are free, and
+        // the column left beside a QR is narrow enough to need them. "Nissa,
+        // Ascended Animist" does not go on two lines in 148 dots at any size
+        // worth reading.
+        //
+        // The size floor is above the type line's on purpose: a card name set
         // smaller than the type under it stops being the heading of the slip.
         val name = fitToLines(
             content.title,
             textPaint(NAME_SIZE, bold = true),
             right - titleLeft - costWidth,
-            2,
+            if (qrSize > 0) 4 else 2,
             NAME_MIN_SIZE,
         )
         val height = maxOf(
@@ -336,78 +358,62 @@ class SlipRenderer {
     }
 
     /**
-     * Type line on the left, power/toughness or loyalty in a box on the right.
+     * The type line, across the full width.
      *
-     * The box is the point. P/T used to be 23 px text at the end of the type
-     * line, where a real card puts it in a box you find without looking; the row
-     * already reserves enough height for 32 px in a stroked box, so this is the
-     * cheapest legibility on the slip.
+     * Power/toughness used to share this row. It belongs in the bottom-right
+     * corner, which is where a Magic card puts it and where a player looks for
+     * it without reading anything else. See [corner].
      */
-    private class TypeRow(
-        val type: StaticLayout,
-        val corner: String?,
-        val cornerLabel: String?,
-        val cornerPaint: TextPaint,
+    private fun typeRow(content: SlipContent): StaticLayout =
+        fitToLines(content.typeLine, textPaint(TYPE_SIZE), contentWidth, 2, 15f)
+
+    /**
+     * Power/toughness or starting loyalty, in a box in the bottom-right corner.
+     *
+     * A card has one or the other, never both, so they share the corner. The
+     * word beside it is what stops a loyalty of 4 being read as the back half of
+     * a power and toughness.
+     *
+     * It is anchored to the foot of the slip rather than laid out in sequence.
+     * On a card the box sits on the frame's bottom edge whether the text box
+     * above it is full or nearly empty, and a slip that let it ride up behind
+     * two lines of rules text would not read as the same object.
+     */
+    private class Corner(
+        val text: String,
+        val label: String?,
+        val textPaint: TextPaint,
         val labelPaint: TextPaint,
         val boxWidth: Int,
         val boxHeight: Int,
-        val height: Int,
     )
 
-    private fun typeRow(content: SlipContent): TypeRow {
-        val cornerPaint = textPaint(CORNER_SIZE, bold = true)
-        val labelPaint = textPaint(14f).apply { letterSpacing = 0.14f }
-
-        // A card has power/toughness or starting loyalty, never both, so they
-        // share the corner. The word is what stops a loyalty of 4 being read as
-        // the back half of a P/T.
-        val corner = content.powerToughness?.takeIf { it.isNotBlank() }
+    private fun corner(content: SlipContent): Corner? {
+        val text = content.powerToughness?.takeIf { it.isNotBlank() }
             ?: content.loyalty?.takeIf { it.isNotBlank() }
-        val label = if (content.powerToughness.isNullOrBlank() && corner != null) LOYALTY_LABEL else null
+            ?: return null
 
-        var boxWidth = 0
-        var boxHeight = 0
-        if (corner != null) {
-            val bounds = Rect()
-            cornerPaint.getTextBounds(corner, 0, corner.length, bounds)
-            // Sized off the glyphs, not the font: digits and a slash have no
-            // descender, and a box drawn around the font's full line height
-            // would float above its own contents.
-            boxWidth = bounds.width() + 2 * BOX_PAD_X + 2 * BOX_STROKE
-            boxHeight = bounds.height() + 2 * BOX_PAD_Y + 2 * BOX_STROKE
-        }
-
-        val labelWidth = label?.let { labelPaint.measureText(it).toInt() + LOYALTY_GAP } ?: 0
-        val reserved = if (corner == null) 0 else boxWidth + labelWidth + gap
-        val type = fitToLines(content.typeLine, textPaint(TYPE_SIZE), contentWidth - reserved, 2, 15f)
-
-        return TypeRow(
-            type = type,
-            corner = corner,
-            cornerLabel = label,
-            cornerPaint = cornerPaint,
-            labelPaint = labelPaint,
-            boxWidth = boxWidth,
-            boxHeight = boxHeight,
-            height = maxOf(type.height, boxHeight),
+        val paint = textPaint(CORNER_SIZE, bold = true)
+        val bounds = Rect()
+        paint.getTextBounds(text, 0, text.length, bounds)
+        // Sized off the glyphs, not the font: digits and a slash have no
+        // descender, and a box drawn around the font full line height would
+        // float above its own contents.
+        return Corner(
+            text = text,
+            label = if (content.powerToughness.isNullOrBlank()) LOYALTY_LABEL else null,
+            textPaint = paint,
+            labelPaint = textPaint(14f).apply { letterSpacing = 0.14f },
+            boxWidth = bounds.width() + 2 * BOX_PAD_X + 2 * BOX_STROKE,
+            boxHeight = bounds.height() + 2 * BOX_PAD_Y + 2 * BOX_STROKE,
         )
     }
 
-    private fun drawTypeRow(canvas: Canvas, row: TypeRow, y: Int) {
-        canvas.save()
-        canvas.translate(sideMargin.toFloat(), y.toFloat())
-        row.type.draw(canvas)
-        canvas.restore()
-
-        val corner = row.corner ?: return
-
-        // Centred on the type line's first line, not hung off its baseline,
-        // which used to leave the P/T riding 3.5 dots low.
-        val firstLineMiddle = y + (row.type.getLineTop(0) + row.type.getLineBottom(0)) / 2
+    private fun drawCorner(canvas: Canvas, corner: Corner, bottom: Int) {
         val boxRight = (width - sideMargin).toFloat()
-        val boxLeft = boxRight - row.boxWidth
-        val boxTop = (firstLineMiddle - row.boxHeight / 2).toFloat()
-        val boxBottom = boxTop + row.boxHeight
+        val boxLeft = boxRight - corner.boxWidth
+        val boxBottom = bottom.toFloat()
+        val boxTop = boxBottom - corner.boxHeight
 
         val stroke = Paint(black).apply {
             style = Paint.Style.STROKE
@@ -420,21 +426,21 @@ class SlipRenderer {
         )
 
         val bounds = Rect()
-        row.cornerPaint.getTextBounds(corner, 0, corner.length, bounds)
+        corner.textPaint.getTextBounds(corner.text, 0, corner.text.length, bounds)
         canvas.drawText(
-            corner,
-            boxLeft + (row.boxWidth - bounds.width()) / 2f - bounds.left,
-            boxTop + row.boxHeight / 2f + bounds.height() / 2f,
-            row.cornerPaint,
+            corner.text,
+            boxLeft + (corner.boxWidth - bounds.width()) / 2f - bounds.left,
+            boxTop + corner.boxHeight / 2f + bounds.height() / 2f,
+            corner.textPaint,
         )
 
-        row.cornerLabel?.let { label ->
-            val metrics = row.labelPaint.fontMetrics
+        corner.label?.let { label ->
+            val metrics = corner.labelPaint.fontMetrics
             canvas.drawText(
                 label,
-                boxLeft - LOYALTY_GAP - row.labelPaint.measureText(label),
-                boxTop + row.boxHeight / 2f - (metrics.ascent + metrics.descent) / 2f,
-                row.labelPaint,
+                boxLeft - LOYALTY_GAP - corner.labelPaint.measureText(label),
+                boxTop + corner.boxHeight / 2f - (metrics.ascent + metrics.descent) / 2f,
+                corner.labelPaint,
             )
         }
     }
@@ -799,6 +805,18 @@ class SlipRenderer {
         /** The mana cost in the header. Reads as part of the title, not as the title. */
         private const val COST_SIZE = 25f
         private const val COST_MIN_SIZE = 15f
+
+        /**
+         * What the card name is guaranteed before the cost gets anything.
+         *
+         * Enough for two lines of a long name at a readable size. "Garruk, Apex
+         * Predator" beside a header QR had 99 dots and came out as "Garruk,
+         * Apex ...".
+         */
+        private const val NAME_COLUMN = 170
+
+        /** Below this there is no point setting a cost at all. */
+        private const val COST_MIN_WIDTH = 40
 
         /** Power/toughness, and loyalty, at the size a card prints them. */
         private const val CORNER_SIZE = 32f

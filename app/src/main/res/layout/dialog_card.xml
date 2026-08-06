@@ -110,38 +110,13 @@
                 android:scaleType="centerCrop"
                 tools:src="@color/paper" />
 
-            <LinearLayout
+            <TextView
+                android:id="@+id/cardType"
+                style="@style/TextAppearance.Momir.Body"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="14dp"
-                android:baselineAligned="false"
-                android:gravity="center_vertical"
-                android:orientation="horizontal">
-
-                <TextView
-                    android:id="@+id/cardType"
-                    style="@style/TextAppearance.Momir.Body"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    tools:text="White-Blue Legendary Planeswalker — Urza" />
-
-                <TextView
-                    android:id="@+id/cardCorner"
-                    style="@style/TextAppearance.Momir.CardName"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="12dp"
-                    android:background="@drawable/bg_pt"
-                    android:gravity="center"
-                    android:minWidth="46dp"
-                    android:paddingStart="8dp"
-                    android:paddingEnd="8dp"
-                    android:paddingTop="3dp"
-                    android:paddingBottom="3dp"
-                    android:textColor="@color/accent_soft"
-                    tools:text="7" />
-            </LinearLayout>
+                tools:text="White-Blue Legendary Planeswalker — Urza" />
 
             <View
                 android:id="@+id/cardRulesRule"
@@ -157,6 +132,28 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical" />
+
+            <!--
+              Power/toughness where a card keeps it: under the text box, hard
+              against the right edge. It is the one thing on a card you find
+              without reading anything.
+            -->
+            <TextView
+                android:id="@+id/cardCorner"
+                style="@style/TextAppearance.Momir.CardName"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="end"
+                android:layout_marginTop="6dp"
+                android:background="@drawable/bg_pt"
+                android:gravity="center"
+                android:minWidth="46dp"
+                android:paddingStart="8dp"
+                android:paddingEnd="8dp"
+                android:paddingTop="3dp"
+                android:paddingBottom="3dp"
+                android:textColor="@color/accent_soft"
+                tools:text="4/4" />
         </LinearLayout>
     </ScrollView>
 
