@@ -125,6 +125,7 @@ class MainActivity : AppCompatActivity() {
         binding.syncButton.setOnClickListener { startResync() }
         binding.scanButton.setOnClickListener { startScan() }
         binding.resultTokens.setOnClickListener { lastCard?.let { showTokens(it, fromScan = false) } }
+        binding.resultText.setOnClickListener { lastCard?.let { showCard(it) } }
 
         printer.onStateChanged = { connected -> showPrinterState(connected) }
         showPrinterState(printer.isConnected)
@@ -282,10 +283,19 @@ class MainActivity : AppCompatActivity() {
     private fun nearestManaValue(desired: Int): Int? =
         buckets.minByOrNull { abs(it.manaValue - desired) }?.manaValue
 
-    /** [manaValue] is null when the category is empty and the dial has nothing to show. */
+    /**
+     * [manaValue] is null when the category is empty and the dial has nothing to
+     * show - which is the one case that survives the counts being switched off,
+     * because then the line is not a count. It is the reason the button is dead.
+     */
     private fun updateCountLabel(manaValue: Int?) {
+        val empty = manaValue == null
+        binding.countLabel.visibility =
+            if (settings.showCounts || empty) View.VISIBLE else View.INVISIBLE
+        if (!settings.showCounts && !empty) return
+
         val tally = settings.cardCategory.tally
-        binding.countLabel.text = if (manaValue == null) {
+        binding.countLabel.text = if (empty) {
             getString(
                 R.string.category_empty,
                 resources.getQuantityString(tally, 0, numberFormat.format(0)),
@@ -348,11 +358,10 @@ class MainActivity : AppCompatActivity() {
             // Name it now, not after printing. The glow already shows this card's
             // colours, and leaving the previous card's name underneath for the
             // second and a half the printer takes just looks like a stale screen.
-            showResult(card, null)
+            showResult(card)
 
-            val raster = printSlip(SlipContent.of(card))
+            printSlip(SlipContent.of(card))
             binding.printButton.isBusy = false
-            if (raster != null) showResult(card, raster.height)
         }
     }
 
@@ -453,7 +462,7 @@ class MainActivity : AppCompatActivity() {
             // without feeding paper through the printer for every tweak.
             playPrintGlow(card.colorIdentity)
 
-            val height = withContext(Dispatchers.IO) {
+            withContext(Dispatchers.IO) {
                 val content = SlipContent.of(card)
                 val mode = settings.printMode
                 val art = if (mode == PrintMode.ARTWORK && content.hasArt) {
@@ -474,35 +483,30 @@ class MainActivity : AppCompatActivity() {
                     bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, out)
                 }
                 bitmap.recycle()
-                settings.contentBudgetDots
             }
 
-            // The panel already names the card and reports its length; all
-            // that is left to say is that no paper moved.
-            showResult(card, height, note = getString(R.string.preview_title))
+            showResult(card)
         }
     }
 
-    /**
-     * [contentDots] is null until the slip has actually been rendered, and
-     * [note] is what the panel says instead of nothing when no paper moved.
-     */
-    private suspend fun showResult(card: Card, contentDots: Int?, note: String? = null) {
+    private suspend fun showResult(card: Card) {
         if (card.oracleId != lastCard?.oracleId) {
             lastTokens = withContext(Dispatchers.IO) { repository.tokensFor(card.oracleId) }
         }
         lastCard = card
         binding.resultName.text = card.name
+        binding.resultText.isClickable = true
         binding.resultDetail.visibility = View.VISIBLE
+        // The type line and what is in the corner, and nothing else. It used
+        // to end with the slip's length in millimetres, which is a fact about
+        // the printer rather than about the card, and it was the same number
+        // every time: every slip is 88 mm. The calibration slip still reports
+        // it, which is the one place it means something.
         binding.resultDetail.text = listOfNotNull(
-            note,
             card.typeLine.takeIf { it.isNotBlank() },
             // Labelled, for the same reason it is labelled on the slip: a bare 4
             // on a planeswalker would read as half a power and toughness.
             card.powerToughness ?: card.loyalty?.let { getString(R.string.result_loyalty, it) },
-            contentDots?.let {
-                String.format(Locale.US, "%.0f mm", settings.printedLengthMm(it))
-            },
         ).joinToString(" · ")
         binding.resultStripe.background = stripeFor(card.colorIdentity)
 
@@ -560,6 +564,42 @@ class MainActivity : AppCompatActivity() {
     /** A vertical ramp through a colour identity, for the panel's 4 dp stripe. */
     private fun stripeFor(identity: String): GradientDrawable =
         ManaColors.stripe(ManaColors.forIdentity(identity), resources.displayMetrics.density)
+
+    // ------------------------------------------------------------------------
+    // The card itself
+    // ------------------------------------------------------------------------
+
+    /**
+     * Opens the card the panel is naming.
+     *
+     * The slip is 48 mm wide and is usually across the table by the time someone
+     * wants to re-read an ability off it. Everything needed to show the card is
+     * already here - the artwork included - so the panel's name is a way in
+     * rather than a label.
+     */
+    private fun showCard(card: Card) {
+        // The panel must not time out from under an open sheet; the sheet's own
+        // dismiss restarts the clock.
+        resultHandler.removeCallbacks(hideResult)
+        val tokens = lastTokens
+
+        lifecycleScope.launch {
+            // Off the main thread: this is a seek and a 13 KB read on eMMC that
+            // is slow enough to drop frames if it happens during the fade-in.
+            val art = withContext(Dispatchers.IO) {
+                if (card.hasArt) artPack.read(card.artOffset!!, card.artLength!!) else null
+            }
+
+            CardSheet(
+                activity = this@MainActivity,
+                card = card,
+                tokenCount = tokens.size,
+                art = art,
+                onTokens = { showTokens(card, fromScan = false) },
+                onDismiss = { revealResult(hasTokens = tokens.isNotEmpty()) },
+            ).show()
+        }
+    }
 
     // ------------------------------------------------------------------------
     // Tokens
@@ -643,7 +683,7 @@ class MainActivity : AppCompatActivity() {
             // sheet that simply appeared is disorienting; coming back to the
             // screen taking the scanned card's colours is not.
             playPrintGlow(card.colorIdentity)
-            showResult(card, null)
+            showResult(card)
             showTokens(card, fromScan = true)
         }
     }
@@ -661,6 +701,12 @@ class MainActivity : AppCompatActivity() {
         view.artworkSwitch.isChecked = settings.printMode == PrintMode.ARTWORK
         view.artworkSwitch.setOnCheckedChangeListener { _, checked ->
             settings.printMode = if (checked) PrintMode.ARTWORK else PrintMode.QR
+        }
+
+        view.countsSwitch.isChecked = settings.showCounts
+        view.countsSwitch.setOnCheckedChangeListener { _, checked ->
+            settings.showCounts = checked
+            updateCountLabel(binding.manaWheel.selectedValue)
         }
 
         view.copiesSeek.progress = settings.copies - 1
@@ -829,8 +875,11 @@ class MainActivity : AppCompatActivity() {
         binding.resultName.text = title
         binding.resultDetail.text = detail.orEmpty()
         binding.resultDetail.visibility = if (detail.isNullOrBlank()) View.GONE else View.VISIBLE
-        // The chip belongs to a card, and this is not one.
+        // The chip and the way into the card both belong to a card, and this is
+        // not one. Tapping "Printer not connected" should not open whatever was
+        // rolled before it.
         binding.resultTokens.visibility = View.GONE
+        binding.resultText.isClickable = false
         binding.resultStripe.background = ManaColors.stripe(
             listOf(ContextCompat.getColor(this, if (danger) R.color.danger else R.color.accent)),
             resources.displayMetrics.density,

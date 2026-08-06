@@ -190,11 +190,23 @@
             android:layout_marginEnd="12dp"
             android:minHeight="40dp" />
 
+        <!--
+          The name and its line are the way into the card itself. Clickable as
+          one block rather than as a link on the name: a name at 17sp is a 20 dp
+          target on a device you use standing up, and there is nothing else in
+          this column to hit by mistake.
+        -->
         <LinearLayout
+            android:id="@+id/resultText"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:orientation="vertical">
+            android:background="?attr/selectableItemBackground"
+            android:clickable="true"
+            android:focusable="true"
+            android:orientation="vertical"
+            android:paddingTop="4dp"
+            android:paddingBottom="4dp">
 
             <TextView
                 android:id="@+id/resultName"

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  One ability in the card view's text box, one per line of oracle text - for the
+  same reason the slip lays them out separately. A newline between two abilities
+  is typographically identical to a wrap inside one, and the reader should not
+  have to find the boundary.
+-->
+<TextView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    style="@style/TextAppearance.Momir.Body"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginBottom="10dp"
+    android:lineSpacingExtra="2dp"
+    tools:text="+2: Artifact, instant, and sorcery spells you cast this turn cost 2 less to cast." />

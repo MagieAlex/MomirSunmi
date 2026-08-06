@@ -28,6 +28,18 @@ class Settings(context: Context) {
             .getOrDefault(CardCategory.CREATURES)
         set(value) = prefs.edit().putString(KEY_CATEGORY, value.name).apply()
 
+    /**
+     * Whether the line under the dial counts what the roll can land on.
+     *
+     * On by default, because "604 creatures at mana value 7" is the one thing
+     * on the screen that says the corpus is real. Off for anyone who has read it
+     * once and would rather have the dial to itself - it is the same number
+     * every time you come back to a mana value.
+     */
+    var showCounts: Boolean
+        get() = prefs.getBoolean(KEY_SHOW_COUNTS, true)
+        set(value) = prefs.edit().putBoolean(KEY_SHOW_COUNTS, value).apply()
+
     var copies: Int
         get() = prefs.getInt(KEY_COPIES, 1).coerceIn(1, 5)
         set(value) = prefs.edit().putInt(KEY_COPIES, value.coerceIn(1, 5)).apply()
@@ -104,6 +116,7 @@ class Settings(context: Context) {
         private const val KEY_MODE = "print_mode"
         private const val KEY_CATEGORY = "card_category"
         private const val KEY_COPIES = "copies"
+        private const val KEY_SHOW_COUNTS = "show_counts"
         private const val KEY_SLIP_LENGTH = "max_slip_mm"
 
         /** Was the whole feed before the foot margin was split out of it. */

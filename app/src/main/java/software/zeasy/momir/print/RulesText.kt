@@ -37,10 +37,19 @@ object RulesText {
      *
      * With [keepReminders] false, parenthesised runs are removed and any ability
      * that was nothing but a reminder goes with them.
+     *
+     * [stripSymbols] is what the slip wants and the screen does not. On paper
+     * there is nothing to draw inside the braces, so `{2}{U}` becomes `2U`; on
+     * screen the braces are left in place for `ManaSymbols` to swap for the real
+     * thing.
      */
-    fun abilities(oracle: String, keepReminders: Boolean): List<CharSequence> =
+    fun abilities(
+        oracle: String,
+        keepReminders: Boolean,
+        stripSymbols: Boolean = true,
+    ): List<CharSequence> =
         oracle.split('\n')
-            .map { SYMBOL.replace(it) { match -> match.groupValues[1] }.trim() }
+            .map { if (stripSymbols) SYMBOL.replace(it) { m -> m.groupValues[1] }.trim() else it.trim() }
             .filter { it.isNotEmpty() }
             .mapNotNull { if (keepReminders) italicise(it) else stripReminders(it) }
 

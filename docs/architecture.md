@@ -213,6 +213,27 @@ muddy as emitted light on a near-black screen. Black gets violet, because there
 is no such thing as a black glow and every digital Magic client has made the
 same substitution for twenty years.
 
+`CardSheet` is the card behind the slip: tapping the name on the result panel
+opens the artwork, the mana cost, the type line and the rules text, laid out in
+the order a Magic card is. Everything it needs is already on the device, so it
+works with the radio off like everything else here.
+
+Two things it does that the slip cannot. The artwork is shown on a
+paper-coloured window rather than the screen's black, because what `art.pack`
+holds is a 1-bit dither prepared for a thermal head and painting it white-on-dark
+would be a photographic negative of the printed card. And costs and rules text
+are set in **Magic's own mana symbols** - Scryfall's SVGs converted to vector
+drawables by `tools/mana_symbols.py`, which also generates the token-to-drawable
+table so neither can be missing from the other. They are shipped rather than
+fetched for the obvious reason. Which symbols get built is decided by the corpus:
+every `{...}` that appears in a mana cost or rules text, 60 of Scryfall's ~110.
+
+The dial draws the same symbols. It used to draw a hand-made stone disc with a
+numeral struck into it, which was a good likeness of a generic mana symbol and
+still only a likeness; the drawing survives as the fallback for a mana value
+Scryfall has no symbol for. They are rasterised once per value and blitted after
+that, because the drum redraws continuously through every drag and fling.
+
 `TokenSheet` is the bottom sheet a card's tokens come up in — from the panel at
 the bottom of the screen, or straight from a scan. It is anchored to the bottom
 edge at full width and rises from it; as a floating dialog it hovered over the

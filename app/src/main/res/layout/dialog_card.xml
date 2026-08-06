@@ -1,0 +1,200 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The card behind the slip.
+
+  Laid out in the order a Magic card is: title bar with the mana cost on the
+  right, then the art window, then the type line with power/toughness in its
+  box, then the text box. Someone who has just printed a card and wants to read
+  it should not have to work out where anything is.
+
+  Buttons are TextViews for the reason documented in dialog_settings.xml.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/cardRoot"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@drawable/bg_sheet"
+    android:orientation="vertical"
+    android:paddingTop="18dp"
+    android:paddingBottom="18dp">
+
+    <!-- title bar -->
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:baselineAligned="false"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="20dp"
+        android:paddingEnd="20dp">
+
+        <TextView
+            android:id="@+id/cardBadge"
+            style="@style/TextAppearance.Momir.CardName"
+            android:layout_width="34dp"
+            android:layout_height="34dp"
+            android:layout_marginEnd="12dp"
+            android:background="@drawable/bg_badge"
+            android:gravity="center"
+            android:textColor="@color/accent_soft"
+            tools:text="7" />
+
+        <TextView
+            android:id="@+id/cardName"
+            style="@style/TextAppearance.Momir.Title"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:ellipsize="end"
+            android:maxLines="2"
+            tools:text="Urza, Planeswalker" />
+
+        <TextView
+            android:id="@+id/cardCost"
+            style="@style/TextAppearance.Momir.CardName"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="10dp"
+            android:textColor="@color/accent_soft"
+            tools:text="5 W U" />
+    </LinearLayout>
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:layout_marginStart="20dp"
+        android:layout_marginEnd="20dp"
+        android:layout_marginTop="14dp"
+        android:background="@drawable/bg_rule" />
+
+    <!--
+      Everything a long card can overrun. Capped in code against the screen.
+
+      No padding on the scroll view itself: a View draws its fading edge from the
+      padding edge, so any here would put the fade inside the sheet and leave the
+      clipped line below it at full strength. The inset belongs to the column.
+    -->
+    <ScrollView
+        android:id="@+id/cardScroll"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:fadingEdgeLength="26dp"
+        android:requiresFadingEdge="vertical"
+        android:scrollbars="none">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingStart="20dp"
+            android:paddingEnd="20dp"
+            android:paddingTop="14dp"
+            android:paddingBottom="6dp">
+
+            <!--
+              A fixed window rather than the whole crop. At full width the art is
+              500 px tall on a 1440 px screen, which pushes the type line off the
+              bottom of a card view whose job is to show the type line. Cropping
+              the top and bottom is what the slip does when it needs the space,
+              so it is the same picture either way.
+            -->
+            <ImageView
+                android:id="@+id/cardArt"
+                android:layout_width="match_parent"
+                android:layout_height="170dp"
+                android:background="@drawable/bg_art"
+                android:contentDescription="@string/card_art"
+                android:padding="1dp"
+                android:scaleType="centerCrop"
+                tools:src="@color/paper" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="14dp"
+                android:baselineAligned="false"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/cardType"
+                    style="@style/TextAppearance.Momir.Body"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    tools:text="White-Blue Legendary Planeswalker — Urza" />
+
+                <TextView
+                    android:id="@+id/cardCorner"
+                    style="@style/TextAppearance.Momir.CardName"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="12dp"
+                    android:background="@drawable/bg_pt"
+                    android:gravity="center"
+                    android:minWidth="46dp"
+                    android:paddingStart="8dp"
+                    android:paddingEnd="8dp"
+                    android:paddingTop="3dp"
+                    android:paddingBottom="3dp"
+                    android:textColor="@color/accent_soft"
+                    tools:text="7" />
+            </LinearLayout>
+
+            <View
+                android:id="@+id/cardRulesRule"
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:layout_marginTop="14dp"
+                android:layout_marginBottom="14dp"
+                android:background="@drawable/bg_rule" />
+
+            <!-- One child per ability, filled in at runtime. -->
+            <LinearLayout
+                android:id="@+id/cardRules"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical" />
+        </LinearLayout>
+    </ScrollView>
+
+    <!-- actions -->
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:orientation="horizontal"
+        android:paddingStart="20dp"
+        android:paddingEnd="20dp">
+
+        <TextView
+            android:id="@+id/cardTokens"
+            style="@style/TextAppearance.Momir.Action"
+            android:layout_width="0dp"
+            android:layout_height="46dp"
+            android:layout_marginEnd="10dp"
+            android:layout_weight="1"
+            android:background="@drawable/bg_button_ghost"
+            android:clickable="true"
+            android:focusable="true"
+            android:gravity="center"
+            tools:text="2 tokens" />
+
+        <TextView
+            android:id="@+id/cardClose"
+            style="@style/TextAppearance.Momir.Action"
+            android:layout_width="0dp"
+            android:layout_height="46dp"
+            android:layout_weight="1"
+            android:background="@drawable/bg_button_ghost"
+            android:clickable="true"
+            android:focusable="true"
+            android:gravity="center"
+            android:text="@string/close"
+            android:textColor="@color/text_secondary" />
+    </LinearLayout>
+
+</LinearLayout>

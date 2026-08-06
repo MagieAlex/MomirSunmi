@@ -65,6 +65,8 @@
 
     <string name="settings_artwork">Artwork on slips</string>
     <string name="settings_artwork_hint">Prints the card\'s picture in the middle of the slip. A card with no artwork stored falls back to the QR layout.</string>
+    <string name="settings_counts">Count the cards</string>
+    <string name="settings_counts_hint">Shows how many cards the dial can land on under it. The line still appears when a category has none at all, because that is why the button is dead.</string>
     <string name="settings_copies">Copies per print</string>
     <string name="settings_slip_length">Slip length</string>
     <string name="settings_slip_length_hint">Every slip is printed to exactly this length, so they stack like cards. A Magic card is 88 mm.</string>
@@ -90,8 +92,6 @@
     <string name="scan_failed">Scan failed</string>
     <string name="sync_title">Card data</string>
     <string name="sync_starting">Downloading what this device is missing</string>
-    <string name="preview_title">Preview</string>
-    <string name="preview_detail">Written to preview.png, nothing printed</string>
     <string name="result_loyalty">Loyalty %1$s</string>
 
     <string name="scan">Scan a slip</string>
@@ -106,6 +106,7 @@
         <item quantity="other">%1$d tokens</item>
     </plurals>
     <string name="tokens_none">%1$s does not create any tokens</string>
+    <string name="card_art">Card artwork</string>
 
     <!-- token sheet -->
     <string name="tokens_chip_creates">Tokens</string>

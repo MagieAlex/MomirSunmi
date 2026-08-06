@@ -64,6 +64,29 @@
             android:layout_marginBottom="16dp"
             android:background="@color/outline" />
 
+        <androidx.appcompat.widget.SwitchCompat
+            android:id="@+id/countsSwitch"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/settings_counts"
+            android:textAppearance="@style/TextAppearance.Momir.Body"
+            android:theme="@style/ThemeOverlay.Momir.Switch"
+            app:switchPadding="12dp" />
+
+        <TextView
+            style="@style/TextAppearance.Momir.Caption"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="@string/settings_counts_hint" />
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:layout_marginTop="16dp"
+            android:layout_marginBottom="16dp"
+            android:background="@color/outline" />
+
         <TextView
             android:id="@+id/copiesLabel"
             android:layout_width="match_parent"

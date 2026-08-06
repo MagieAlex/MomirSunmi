@@ -1,6 +1,7 @@
 package software.zeasy.momir.ui
 
 import android.content.Context
+import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
@@ -30,10 +31,15 @@ import kotlin.math.sin
  * and opacity. That single mapping is what makes it read as a rotating wheel
  * rather than a list that happens to fade.
  *
- * Each value is drawn as the generic mana symbol it is: a pale stone disc with
- * the number struck into it, lit from the upper left. A player reading `{5}` on
- * this dial and `{5}` on a card in their hand is reading the same object, and
- * that is worth more than any amount of styling on a bare numeral.
+ * Each value is drawn as the generic mana symbol it is - Magic's own, the same
+ * artwork the card in the player's hand carries, shipped as a vector drawable by
+ * tools/mana_symbols.py. It used to be a hand-drawn stone disc with a numeral
+ * struck into it, which was a good likeness and still only a likeness. That
+ * drawing is kept as the fallback for a mana value Scryfall has no symbol for.
+ *
+ * Symbols are rasterised once per value, on first sight, and blitted after that:
+ * the drum redraws continuously through every drag and fling, and re-rendering
+ * three vector paths per frame on this chip is not free.
  *
  * Only mana values that actually exist are offered. Magic has never printed a
  * creature at mana value 14, or anything above 16, and a dial that lets you land
@@ -53,6 +59,7 @@ class ManaWheel @JvmOverloads constructor(
             // a second thousand times over for text that never changes.
             labels = Array(value.size) { value[it].toString() }
             textHeights = IntArray(value.size)
+            symbols = arrayOfNulls(value.size)
             scrollOffset = scrollOffset.coerceIn(0f, maxOffset)
             // Deliberately silent. Populating the wheel is not the user choosing
             // something, and firing the callback here would report index 0 and
@@ -76,6 +83,9 @@ class ManaWheel @JvmOverloads constructor(
      */
     private var textHeights = IntArray(0)
 
+    /** One rasterised mana symbol per value, filled in the first time it is drawn. */
+    private var symbols: Array<Bitmap?> = emptyArray()
+
     private val scroller = OverScroller(context)
     private var velocityTracker: VelocityTracker? = null
     private var lastTouchY = 0f
@@ -89,6 +99,7 @@ class ManaWheel @JvmOverloads constructor(
         textAlign = Paint.Align.CENTER
     }
     private val discPaint = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val symbolPaint = Paint(Paint.FILTER_BITMAP_FLAG)
     private val indicatorPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
         strokeWidth = dp(1f)
@@ -230,6 +241,17 @@ class ManaWheel @JvmOverloads constructor(
             indicatorPaint.alpha = 255
         }
 
+        val symbol = symbol(index)
+        if (symbol != null) {
+            symbolPaint.alpha = alpha
+            canvas.drawBitmap(symbol, -discRadius, -discRadius, symbolPaint)
+            symbolPaint.alpha = 255
+            canvas.restoreToCount(save)
+            return
+        }
+
+        // ---- fallback: the disc this used to draw ---------------------------
+
         discPaint.shader = discShader
         discPaint.alpha = alpha
         canvas.drawCircle(0f, 0f, discRadius, discPaint)
@@ -259,6 +281,27 @@ class ManaWheel @JvmOverloads constructor(
         textPaint.alpha = 255
 
         canvas.restoreToCount(save)
+    }
+
+    /**
+     * The mana symbol for [index], rasterised on first sight and kept.
+     *
+     * Null for a mana value Magic has no symbol for, which is nothing in any
+     * corpus so far - the drum tops out at 16 and Scryfall draws every generic
+     * cost up to 20 - but a dial that silently drew nothing would be worse than
+     * one that falls back to a numeral on a disc.
+     */
+    private fun symbol(index: Int): Bitmap? {
+        symbols.getOrNull(index)?.let { return it }
+        if (index !in symbols.indices) return null
+
+        val size = (discRadius * 2f).toInt()
+        if (size <= 0) return null
+        val drawable = ManaSymbols.drawable(context, values[index].toString(), size) ?: return null
+        val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+        drawable.draw(Canvas(bitmap))
+        symbols[index] = bitmap
+        return bitmap
     }
 
     override fun onTouchEvent(event: MotionEvent): Boolean {

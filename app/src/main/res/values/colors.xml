@@ -35,6 +35,14 @@
     <color name="success">#4ADE80</color>
 
     <!--
+      Thermal paper and the mark the head burns into it. The card view shows the
+      artwork as what it is - a 1-bit dither made for a slip - so it shows it the
+      way the slip will, on paper rather than on the screen's black.
+    -->
+    <color name="paper">#EAE3D2</color>
+    <color name="ink">#191510</color>
+
+    <!--
       The five colours, tuned for emitted light rather than reflected ink. Kept in
       sync with ManaColors, which needs them as ints at draw time.
     -->

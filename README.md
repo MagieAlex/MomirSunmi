@@ -61,10 +61,14 @@ wants one.
   stack of them behaves like a stack of cards rather than a pile of receipts.
   The layout re-flows to fill or fit, whichever it needs, dropping reminder text
   before it shrinks type and never setting anything below 20 dots.
-- **It looks like Magic.** The dial spins actual mana symbols, the print button
-  is a brass seal with the five colours set into its rim as gems — WUBRG
-  clockwise, the colour wheel — and everything that names a card is set in a
-  serif on card-frame gold.
+- **Read the card, not just the slip.** Tapping the name on the result panel
+  opens the card itself: the artwork on a paper-coloured window, the mana cost
+  and rules text in real Magic symbols, laid out in the order a card is.
+- **It looks like Magic.** The dial spins Magic's own mana symbols — Scryfall's
+  artwork, converted to vector drawables and shipped in the APK, because a device
+  with no network still has to draw them. The print button is a brass seal with
+  the five colours set into its rim as gems — WUBRG clockwise, the colour wheel —
+  and everything that names a card is set in a serif on card-frame gold.
 - **It looks like something happened.** Pressing the button lights it up, the
   screen edge takes on the card's colour identity, and a band of that colour
   sweeps up and out of the top of the screen — which is where the V2's paper
@@ -123,6 +127,7 @@ where it left off.
 | Spin the dial | Pick a mana value. Only values that category actually has are offered — Magic has never printed a creature at mana value 14, and planeswalkers start at 2. |
 | **PRINT** | Rolls a random card of that type at that mana value and prints it. |
 | Long-press **PRINT** | Renders the slip to `preview.png` in the app's files directory *without* printing. For checking a layout without burning paper. |
+| Tap the card's name | Opens the card itself: artwork, mana cost and rules text in real Magic symbols, laid out the way a card is. The slip is 48 mm wide and usually across the table by the time someone wants to re-read an ability off it. |
 | Tap "*n* tokens" | Opens the token sheet: pick one, set a quantity, print — or print one of each. |
 | Scan button | Reads the QR off a slip and opens that card's token sheet, stamped as a scan. |
 | Settings → Test print | Prints a calibration slip for dialling in the paper geometry. |
@@ -168,6 +173,7 @@ app/                    Android app (Kotlin, minSdk 25, Views — no Compose)
   src/main/java/…/ui        The dial, the button, the token sheet, the scanner
 tools/momirdeck/        The PC-side corpus builder
 tools/make_icon.py      Regenerates the launcher icon from the print button
+tools/mana_symbols.py   Rebuilds the mana symbols from Scryfall's SVGs
 tools/dithercheck.py    Checks the device ditherer against the builder's
 docs/                   The documents above
 ```
